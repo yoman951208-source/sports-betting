@@ -62,7 +62,17 @@
 **歷史相似盤口**（勝平負機率 + 大2.5 機率都接近的 2024–26 比賽 → 讓分 × 大小交叉的實際賽果）、
 各選項的**合理賠率**與期望值。3.5 / 1.5 球的盤口用 Poisson 換算成大 2.5 機率，才能跟歷史資料比。
 
-## 每天自動做的事（電腦睡著錯過時間，醒來會補跑）
+## 執行架構
+
+| 在哪裡 | 做什麼 |
+|---|---|
+| **GitHub Actions**（公開 repo，免費、不限分鐘） | `.github/workflows/betting.yml` 每小時 :07、:37 跑 `main.py cloud`：一輪監控 + 到期的每日工作（台灣時間判斷）。資料庫與策略檔存在 **`data` 分支**，歷史賠率快取用 actions/cache |
+| **本機**（工作排程器 SportsBetting，`main.py bot`） | 只回答 Telegram 指令；每 5 分鐘從 `data` 分支同步最新資料庫。電腦關機不影響監控與每日報告 |
+
+Telegram 金鑰放在 repo 的 Actions secrets（`TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`），不在程式碼裡。
+要改回全部在本機跑：工作排程器參數改成 `main.py loop`，並停用 workflow。
+
+## 每天自動做的事（台灣時間；GitHub 排程可能延遲幾分鐘）
 
 | 時間 | 內容 |
 |---|---|
@@ -88,12 +98,16 @@
 .venv\Scripts\python main.py test-notify        # Telegram 測試
 ```
 
-背景執行：Windows 工作排程器 **SportsBetting**（登入後 1 分鐘啟動 `main.py loop`）：每 30 分鐘監控、每週一 06:00 自動更新資料並重新回測。
+```bash
+.venv\Scripts\python main.py sync               # 手動從 GitHub data 分支同步雲端資料庫
+gh workflow run betting.yml                     # 立即觸發一次雲端執行
+```
 
 ```powershell
-Stop-ScheduledTask SportsBetting; Start-ScheduledTask SportsBetting   # 改完程式後重啟
-Disable-ScheduledTask SportsBetting                                    # 停用
+Stop-ScheduledTask SportsBetting; Start-ScheduledTask SportsBetting   # 本機改完程式後重啟指令模式
 ```
+
+改完程式要 `git push`，雲端下一次執行就會用新版本。
 
 ## 可調整的地方（config.py）
 

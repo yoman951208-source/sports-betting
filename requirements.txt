@@ -1,0 +1,6 @@
+pandas>=2.0
+requests>=2.31
+schedule>=1.2
+python-dotenv>=1.0
+truststore>=0.9
+tzdata; sys_platform == "win32"

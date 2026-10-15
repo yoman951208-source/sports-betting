@@ -1,0 +1,73 @@
+# 運彩分析：每 30 分鐘執行一次（抓盤口、記錄預測、結算、到期的每日報告）
+# 狀態（betting.db、strategies.json）存在 data 分支；歷史賠率快取用 actions/cache（每天一版）
+name: betting
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"     # 每小時 :07 與 :37（避開整點尖峰，GitHub 排程可能延遲數分鐘）
+  workflow_dispatch:
+
+permissions:
+  contents: write              # 推送 data 分支
+
+concurrency:
+  group: betting               # 一次只跑一個，避免兩次同時改資料庫
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      TZ: Asia/Taipei          # 每日工作的時間（10:00 / 12:00 / 12:30）以台灣時間判斷
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Day key
+        id: day
+        run: echo "d=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore history cache
+        uses: actions/cache@v4
+        with:
+          path: data/cache
+          key: hist-${{ steps.day.outputs.d }}
+          restore-keys: hist-
+
+      - name: Restore state from data branch
+        run: |
+          mkdir -p data
+          if git fetch -q --depth=1 origin data; then
+            git show FETCH_HEAD:betting.db > data/betting.db
+            git show FETCH_HEAD:strategies.json > data/strategies.json || rm -f data/strategies.json
+          else
+            echo "data 分支不存在，從空資料庫開始"
+          fi
+
+      - name: Run
+        run: python main.py cloud
+
+      - name: Save state to data branch
+        if: always()
+        run: |
+          [ -f data/betting.db ] || exit 0
+          mkdir -p /tmp/state
+          cp data/betting.db /tmp/state/
+          [ -f data/strategies.json ] && cp data/strategies.json /tmp/state/
+          cd /tmp/state
+          git init -q
+          git checkout -q -b data
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -qm "state $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" data

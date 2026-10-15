@@ -24,9 +24,9 @@ jobs:
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -38,7 +38,7 @@ jobs:
         run: echo "d=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"
 
       - name: Restore history cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/cache
           key: hist-${{ steps.day.outputs.d }}

@@ -15,7 +15,9 @@ import time
 import requests
 
 import config
-from core import _telegram_credentials, db, kv_get, kv_set, log, send_blocks, send_telegram
+from core import DATA_DIR, _telegram_credentials, db, kv_get, kv_set, log, send_blocks, send_telegram
+
+OFFSET_FILE = DATA_DIR / "tg_offset.txt"   # Telegram 讀取位置（本機專用，不隨雲端同步）
 
 HELP = """🤖 <b>運彩分析機器人 指令</b>
 
@@ -110,9 +112,13 @@ def poll(timeout: int = 20) -> None:
     if not token or not chat_id:
         time.sleep(timeout)
         return
-    conn = db()
+    # 不在等待期間開著資料庫：Windows 上開著的檔案無法被雲端同步覆蓋。
+    # 讀取位置存在獨立的小檔案，同步資料庫時才不會被蓋掉。
     try:
-        offset = int(kv_get(conn, "tg_offset", "0"))
+        offset = int(OFFSET_FILE.read_text().strip() or 0) if OFFSET_FILE.exists() else 0
+    except (OSError, ValueError):
+        offset = 0
+    try:
         resp = requests.get(f"https://api.telegram.org/bot{token}/getUpdates",
                             params={"offset": offset, "timeout": timeout, "allowed_updates": '["message"]'},
                             timeout=timeout + 15)
@@ -120,7 +126,7 @@ def poll(timeout: int = 20) -> None:
         if not resp.ok:
             time.sleep(5)
         for u in updates:
-            kv_set(conn, "tg_offset", str(u["update_id"] + 1))  # 先記錄，避免出錯時無限重試同一則
+            OFFSET_FILE.write_text(str(u["update_id"] + 1))  # 先記錄，避免出錯時無限重試同一則
             msg = u.get("message") or {}
             text = (msg.get("text") or "").strip()
             if str(msg.get("chat", {}).get("id")) != chat_id or not text:
@@ -134,5 +140,3 @@ def poll(timeout: int = 20) -> None:
     except (requests.RequestException, ValueError) as exc:
         log.warning("Telegram 輪詢失敗：%s", str(exc).replace(token, "***"))
         time.sleep(5)
-    finally:
-        conn.close()

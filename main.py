@@ -163,7 +163,14 @@ def sync_state() -> bool:
                 continue
             tmp = DATA_DIR / f"{name}.tmp"
             tmp.write_bytes(resp.content)
-            os.replace(tmp, DATA_DIR / name)
+            for attempt in range(5):  # Windows：檔案正被讀取時無法覆蓋，稍等重試
+                try:
+                    os.replace(tmp, DATA_DIR / name)
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    time.sleep(1.5)
         except (requests.RequestException, OSError) as exc:
             log.warning("同步 %s 失敗：%s", name, exc)
             ok = False

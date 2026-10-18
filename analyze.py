@@ -83,6 +83,8 @@ def nba_history() -> pd.DataFrame:
         df = data_nba.load_history()
         df["margin"] = df["home_score"] - df["away_score"]
         df["points"] = df["home_score"] + df["away_score"]
+        inv_h, inv_a = 1 / df["c_ml_home"], 1 / df["c_ml_away"]
+        df["pH"] = inv_h / (inv_h + inv_a)
         _NBA = df.dropna(subset=["c_spread_home", "c_total"])
     return _NBA
 
@@ -263,7 +265,11 @@ def football_model(g: dict) -> dict | None:
     n = len(a)
     hist = {}
     if n:
-        hist = {"H": (a["ftr"] == "H").mean(), "D": (a["ftr"] == "D").mean(), "A": (a["ftr"] == "A").mean(),
+        # 勝平負用「相似比賽打敗自己市場機率多少」加回這場的市場機率（樣本放寬時不會偏向常見的盤口，10/19 修正）
+        clip = lambda x: float(min(0.97, max(0.02, x)))
+        hist = {"H": clip(pc[0] + ((a["ftr"] == "H") - a["pH"]).mean()),
+                "D": clip(pc[1] + ((a["ftr"] == "D") - a["pD"]).mean()),
+                "A": clip(pc[2] + ((a["ftr"] == "A") - a["pA"]).mean()),
                 "over25": (a["goals"] >= 3).mean(), "goals": a["goals"].mean()}
         if L:
             dec = a[a["goals"] != L]
@@ -409,7 +415,8 @@ def analyze_nba(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
     if m["n"]:
         hist = m["hist"]
         lines.append(f"<b>歷史相似盤口</b>（讓分±1、大小±6，{m['n']} 場）")
-        lines.append(f"  主隊贏盤 {hist['cover']*100:.0f}%｜大分 {hist['over']*100:.0f}%｜主勝 {hist['win']*100:.0f}%")
+        pct = lambda k: f"{hist[k]*100:.0f}%" if hist.get(k) is not None else "-"
+        lines.append(f"  主隊贏盤 {pct('cover')}｜大分 {pct('over')}｜主勝（校正後）{pct('win')}")
     sig = [("⭐" if s.enabled else "☆") + s.title for s in strats
            if s.sport == "nba" and s.live_source == "espn" and (s.enabled or s.weak) and trigger(s, f)]
     lines += [f"🔔 {escape(x)}" for x in sig]
@@ -436,11 +443,12 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
     n = len(a)
     hist = {}
     if n:
-        cover = a["margin"].map(lambda m: settle_handicap(m, sp, 2.0))
+        # 每場相似比賽都對「自己的」讓分與大小分盤口結算，避免盤口差 1~6 分造成偏差（10/19 修正）
+        cover = a["margin"] + a["c_spread_home"]
         hist["cover"] = float((cover[cover != 0] > 0).mean())
-        over = a["points"] - (tot or 0)
+        over = a["points"] - a["c_total"]
         hist["over"] = float((over[over != 0] > 0).mean()) if tot else None
-        hist["win"] = float((a["margin"] > 0).mean())
+        hist["win_resid"] = float(((a["margin"] > 0) - a["pH"]).dropna().mean())   # 相似比賽主隊勝率比市場高多少
     p_sp = no_vig2(o.get("c_spread_home_odds") or 1.91, o.get("c_spread_away_odds") or 1.91)
     p_t = no_vig2(o.get("c_over_odds") or 1.91, o.get("c_under_odds") or 1.91)
     pm_c = no_vig2(f.get("c_ml_home"), f.get("c_ml_away"))
@@ -457,6 +465,8 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
                      "p_hist": hist.get("over"), "n": n},
                     {"key": ("total", "under"), "name": f"小 {tot:g}", "odds": o.get("c_under_odds"), "p_mkt": 1 - p_t,
                      "p_hist": inv(hist.get("over")), "n": n}]
+    if pm_c and hist.get("win_resid") is not None:
+        hist["win"] = min(0.97, max(0.03, pm_c + hist["win_resid"]))
     if pm_c:
         options += [{"key": ("ml", "home"), "name": f"{home} 不讓分", "odds": f.get("c_ml_home"), "p_mkt": pm_c,
                      "p_hist": hist.get("win"), "n": n},
@@ -514,17 +524,20 @@ def mlb_model(g: dict) -> dict | None:
     n = len(a)
     hist = {}
     if n:
-        hist["win"] = float((a["margin"] > 0).mean())
-        hist["over"] = _p_over_emp(a["runs"], L)
+        hist["win"] = float(min(0.97, max(0.03, ph + ((a["margin"] > 0) - a["pH"]).mean())))  # 市場機率 + 相似比賽的偏差
+        # 相似比賽的大小分不一定等於這場（樣本不夠時會放寬到 ±1 分），
+        # 所以把每場的總分平移成「相對自己盤口」再比，否則 6.5 分的盤會被 7.5 分的比賽灌水（10/19 修正）
+        adj = a["runs"] - a["c_total"] + L
+        hist["over"] = _p_over_emp(adj, L)
         if sp is not None:
             cover = a["margin"] + sp
             dec = cover[cover != 0]
             hist["cover"] = float((dec > 0).mean()) if len(dec) else None
         # 運彩常開不同的大小分：用「市場機率 + 歷史上相鄰盤口的差距」推估
         hist["alt"] = {}
-        base = _p_over_emp(a["runs"], L)
+        base = _p_over_emp(adj, L)
         for alt in (L - 1, L + 1):
-            p_alt = _p_over_emp(a["runs"], alt)
+            p_alt = _p_over_emp(adj, alt)
             if p_alt is not None and base is not None and pOL:
                 hist["alt"][alt] = min(0.97, max(0.03, pOL + (p_alt - base)))
     home, away = live.team_name(g, "home"), live.team_name(g, "away")

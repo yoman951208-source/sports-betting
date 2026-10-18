@@ -167,9 +167,13 @@ def sync_state() -> bool:
     from core import DATA_DIR
     ok = True
     for name in ("betting.db", "strategies.json"):
-        url = f"https://raw.githubusercontent.com/{config.GITHUB_REPO}/data/{name}"
+        # 優先用 GitHub API（不經 CDN 快取，raw.githubusercontent 可能慢 5 分鐘）；未登入每小時 60 次，夠用
+        api = f"https://api.github.com/repos/{config.GITHUB_REPO}/contents/{name}?ref=data"
+        raw = f"https://raw.githubusercontent.com/{config.GITHUB_REPO}/data/{name}"
         try:
-            resp = requests.get(url, timeout=30)
+            resp = requests.get(api, headers={"Accept": "application/vnd.github.raw"}, timeout=60)
+            if not resp.ok:
+                resp = requests.get(raw, timeout=60)
             if not resp.ok or not resp.content:
                 ok = False
                 continue

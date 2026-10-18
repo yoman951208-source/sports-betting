@@ -431,6 +431,7 @@ def analyze_nba(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
         lines.append(f"📈 主隊勝率 {(pm_c - pm_o)*100:+.1f}pp → {_move_verdict(strats, 'nba_ml', pm_c - pm_o)}")
 
     m = nba_model(g, f)
+    lines += nba_form_lines(g, m)
     if m["n"]:
         hist = m["hist"]
         lines.append(f"<b>歷史相似盤口</b>（讓分±1、大小±6，{m['n']} 場）")
@@ -443,6 +444,42 @@ def analyze_nba(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
     lines += m["rows"]
     lines.append(_verdict(m["best"]))
     return "\n".join(lines), m["best"]
+
+
+def nba_form_lines(g: dict, m: dict) -> list[str]:
+    """球隊近 10 場、主力 3 人近況與疲勞、球員狀態對勝率的調整。"""
+    form = (m or {}).get("form") or {}
+    out = [f"<b>📋 本季近況與主力</b>（{form.get('season', '')}）"]
+    any_stars = False
+    for side in ("away", "home"):
+        st = form.get(side) or {}
+        name = escape(live.team_name(g, side))
+        if st.get("games10"):
+            out.append(f"  {name}：近{st['games10']}場 {st['wins10']}勝{st['games10'] - st['wins10']}負｜"
+                       f"平均淨勝 {st['margin10']:+.1f}｜打出盤口 {st.get('ats_w', 0)}-{st.get('ats_l', 0)}")
+        for s in st.get("stars", []):
+            any_stars = True
+            flags = []
+            if s["load"] >= 3:
+                flags.append(f"近3場多打 {s['load']:+.1f} 分鐘⚠️")
+            elif s["load"] <= -3:
+                flags.append(f"近3場少打 {s['load']:+.1f} 分鐘")
+            if s["pid"] in form.get("out_pids", set()):
+                flags.append("🚑 Out")
+            trend = "↑" if s["pts_last5"] > s["pts_avg"] * 1.15 else "↓" if s["pts_last5"] < s["pts_avg"] * 0.85 else ""
+            out.append(f"    • {escape(s['name'])}：季均 {s['pts_avg']:.1f}分/{s['min_avg']:.0f}分鐘｜近5場 {s['pts_last5']:.1f}分{trend}"
+                       + (f"｜{'｜'.join(flags)}" if flags else ""))
+    if not any_stars:
+        out.append("  （本季出賽未滿 5 場，主力近況與疲勞調整要等第 5 場之後才會啟用）")
+        return out
+    adj = []
+    if form.get("d_star_load") is not None and m.get("p_sp") is not None and form.get("p_sp_before") is not None:
+        adj.append(f"主隊贏盤 {form['p_sp_before']*100:.1f}% → {m['p_sp']*100:.1f}%")
+    if form.get("d_star_load") is not None and m.get("p_ml") is not None and form.get("p_ml_before") is not None:
+        adj.append(f"主勝 {form['p_ml_before']*100:.1f}% → {m['p_ml']*100:.1f}%")
+    if adj:
+        out.append(f"  🧮 球員狀態調整（疲勞差 {form['d_star_load']:+.1f} 分鐘、缺陣差 {form.get('d_star_out', 0):+.0f}）：" + "；".join(adj))
+    return out
 
 
 def nba_model(g: dict, f: dict | None = None) -> dict | None:
@@ -473,6 +510,22 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
     p_sp = calibration.nba_spread(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"), sp, o.get("o_spread_home"))
     p_t = no_vig2(o.get("c_over_odds") or 1.91, o.get("c_under_odds") or 1.91)
     pm_c = calibration.nba_ml(f.get("c_ml_home"), f.get("c_ml_away"), f.get("o_ml_home"), f.get("o_ml_away"))
+    # 球員狀態（10/19）：主力疲勞差、主力缺陣差（傷兵名單 Out）——本季出賽 ≥5 場才有
+    form = {}
+    try:
+        import nba_form
+        conn = live.db()
+        try:
+            out_pids = {r["player_id"] for r in conn.execute("SELECT player_id FROM injuries WHERE status='Out'")}
+        finally:
+            conn.close()
+        form = nba_form.live_features(g["home_abbr"], g["away_abbr"], out_pids)
+        form["out_pids"] = out_pids
+        form["p_sp_before"], form["p_ml_before"] = p_sp, pm_c
+        p_sp = calibration.nba_form_adjust(p_sp, "spread", form.get("d_star_out"), form.get("d_star_load"))
+        pm_c = calibration.nba_form_adjust(pm_c, "ml", None, form.get("d_star_load"))
+    except Exception:
+        log.exception("NBA 球員狀態計算失敗 %s", g.get("game_id"))
     inv = lambda x: None if x is None else 1 - x
     home, away = live.team_name(g, "home"), live.team_name(g, "away")
     options = [
@@ -502,7 +555,7 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
     for x in options:
         x["p_raw"] = raw.get(x["key"], x["p_mkt"])
     rows, best = option_rows(options, sport="nba")
-    return {"sp": sp, "L": tot, "n": n, "hist": hist, "options": [x for x in options if "p" in x],
+    return {"sp": sp, "L": tot, "n": n, "hist": hist, "form": form, "p_sp": p_sp, "p_ml": pm_c, "options": [x for x in options if "p" in x],
             "rows": rows, "best": best}
 
 

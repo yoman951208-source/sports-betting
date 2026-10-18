@@ -112,7 +112,54 @@ def fit_all() -> dict:
     dsp = -(sp["c_spread_home"] - sp["o_spread_home"]).to_numpy(float)
     out["nba_spread"] = _fit(np.column_stack([_logit(ps), dsp]), (m > 0).to_numpy(float))
     out["n"] = {"football": int(len(fb)), "nba_ml": int(len(ml)), "nba_spread": int(len(sp))}
+    try:
+        out.update(_fit_nba_form(nba, out["nba_ml"], out["nba_spread"]))
+    except Exception:  # box score 抓不到時不影響其他校準
+        log.exception("NBA 球員狀態校準失敗")
     return out
+
+
+def _fit_nba_form(nba, w_ml: list[float], w_sp: list[float]) -> dict:
+    """在「校準後市場機率」之上加球員狀態（10/19 樣本外驗證：兩季都改善、方向一致的才用）：
+       讓分：主力疲勞差、主力缺陣差；不讓分：主力疲勞差。"""
+    import data_nba_box
+    import nba_form
+    box = data_nba_box.load_boxes(nba["event_id"].astype(str).tolist())
+    F = nba_form.game_features(nba, box)
+    d = nba.astype({"event_id": str}).merge(F, on="event_id")
+    d = d[(d["h_n_prior"] >= 10) & (d["a_n_prior"] >= 10)]
+    out = {}
+    s = d.dropna(subset=["c_spread_home", "o_spread_home"])
+    m = s["home_score"] - s["away_score"] + s["c_spread_home"]
+    s, m = s[m != 0], m[m != 0]
+    ps = _power_matrix(s[["c_spread_home_odds", "c_spread_away_odds"]].fillna(1.91).to_numpy(float))[:, 0]
+    dsp = -(s["c_spread_home"] - s["o_spread_home"]).to_numpy(float)
+    base = _logit(_sigmoid(w_sp[0] + w_sp[1] * _logit(ps) + w_sp[2] * dsp))
+    X = np.column_stack([base, s["d_star_out"].fillna(0), s["d_star_load"].fillna(0)])
+    out["nba_form_spread"] = _fit(X, (m > 0).to_numpy(float))
+    ml = d.dropna(subset=["c_ml_home", "c_ml_away", "o_ml_home", "o_ml_away"])
+    pc = _power_matrix(ml[["c_ml_home", "c_ml_away"]].to_numpy(float))[:, 0]
+    po = _power_matrix(ml[["o_ml_home", "o_ml_away"]].to_numpy(float))[:, 0]
+    base = _logit(_sigmoid(w_ml[0] + w_ml[1] * _logit(pc) + w_ml[2] * (_logit(pc) - _logit(po))))
+    X = np.column_stack([base, ml["d_star_load"].fillna(0)])
+    out["nba_form_ml"] = _fit(X, (ml["home_score"] > ml["away_score"]).to_numpy(float))
+    out["n_nba_form"] = int(len(s))
+    return out
+
+
+def nba_form_adjust(p: float | None, kind: str, d_star_out: float | None = None,
+                    d_star_load: float | None = None) -> float | None:
+    """把球員狀態加到校準後的 NBA 機率上。kind = 'spread' / 'ml'。特徵算不出來（季初）就不調整。"""
+    if p is None or d_star_load is None:
+        return p
+    c = coefs()
+    w = c.get(f"nba_form_{kind}")
+    if not w or c.get("raw_nba"):
+        return p
+    lp = float(_logit(p))
+    if kind == "spread":
+        return float(_sigmoid(w[0] + w[1] * lp + w[2] * (d_star_out or 0.0) + w[3] * d_star_load))
+    return float(_sigmoid(w[0] + w[1] * lp + w[2] * d_star_load))
 
 
 def refit() -> dict:

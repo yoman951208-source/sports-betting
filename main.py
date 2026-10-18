@@ -132,9 +132,22 @@ def _weekly() -> None:
     safe(cmd_backtest, False, False)  # 每週更新歷史資料並重新回測
 
 
+def send_nba_preview() -> None:
+    """NBA 賽前報告：未來 14 小時的每場比賽（盤口、主力近況與疲勞、傷兵、球員狀態調整後的合理賠率）。"""
+    import analyze
+    import live
+    games = live.fetch_games()
+    if not analyze.upcoming(games, 14, league="NBA"):
+        return
+    head, *details = analyze.league_report(games, "NBA", 14)
+    send_telegram(head.replace("分析總表", "賽前報告（含主力近況、疲勞、傷兵）"))
+    send_blocks(details)
+
+
 def daily_jobs() -> list[tuple[str, int | None, int, object]]:
     """每日工作（名稱, 時, 分, 函式）：時間到了才跑；錯過就補跑，一天一次（台灣時間）。"""
     return [
+        ("nba_preview", config.NBA_PREVIEW_HOUR, 0, send_nba_preview),
         ("review", config.DAILY_REVIEW_HOUR, 0, lambda: send_review(24, False)),
         ("digest", config.DAILY_DIGEST_HOUR, 0, _digest),
         ("parlay", config.DAILY_PARLAY_HOUR, config.DAILY_PARLAY_MINUTE, lambda: send_daily_parlays(False)),
@@ -151,10 +164,10 @@ def cloud_once() -> None:
         safe(cmd_backtest, False, False)
     conn = db()
     try:
-        has_cal = bool(kv_get(conn, "calibration"))
+        cal = kv_get(conn, "calibration") or ""
     finally:
         conn.close()
-    if not has_cal:
+    if "nba_form_spread" not in cal:   # 沒有校準、或還沒有 10/19 新增的球員狀態係數 → 重新估計
         safe(calibration.refit)
     safe(live.run_cycle)
     run_due_jobs(daily_jobs())

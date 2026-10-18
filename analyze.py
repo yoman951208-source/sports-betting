@@ -72,7 +72,12 @@ def football_history() -> pd.DataFrame:
         df["pO25"] = io["c_avg_over"] / io.sum(axis=1)
         df["goals"] = df["hg"] + df["ag"]
         df["margin"] = df["hg"] - df["ag"]
-        _FB = df.dropna(subset=["pH", "pA", "pO25"])
+        df = df.dropna(subset=["pH", "pA", "pO25"]).copy()
+        # 校準後的市場機率（相似盤口殘差要跟這場用同一套校準比，才不會重複修正冷熱門偏差）
+        import calibration
+        cal = calibration.football_1x2_matrix(df[["c_avg_h", "c_avg_d", "c_avg_a"]].to_numpy(float))
+        df["pHc"], df["pDc"], df["pAc"] = cal[:, 0], cal[:, 1], cal[:, 2]
+        _FB = df
     return _FB
 
 
@@ -246,30 +251,34 @@ def alt_lines(pc: tuple, lam: float) -> list[str]:
 
 def football_model(g: dict) -> dict | None:
     """足球的機率模型：市場去水機率 + 歷史相似盤口 → 各選項（含 key / p / ev / fair）。賽前分析與賽後檢討共用。"""
+    import calibration
     o = g["odds"]
-    pc = no_vig3(o.get("c_ml_home"), o.get("c_ml_draw"), o.get("c_ml_away"))
-    if not pc:
+    pc_raw = no_vig3(o.get("c_ml_home"), o.get("c_ml_draw"), o.get("c_ml_away"))
+    if not pc_raw:
         return None
-    po = no_vig3(o.get("o_ml_home"), o.get("o_ml_draw"), o.get("o_ml_away"))
-    # 大小球 → λ（預期總進球）
-    L, pOL = o.get("c_total"), no_vig2(o.get("c_over_odds"), o.get("c_under_odds"))
+    # 市場機率：power 去水 + 歷史校準（修正冷熱門偏差，見 calibration.py）
+    pc = calibration.football_1x2(o.get("c_ml_home"), o.get("c_ml_draw"), o.get("c_ml_away")) or pc_raw
+    po = (calibration.football_1x2(o.get("o_ml_home"), o.get("o_ml_draw"), o.get("o_ml_away"))
+          or no_vig3(o.get("o_ml_home"), o.get("o_ml_draw"), o.get("o_ml_away")))
+    # 大小球 → λ（預期總進球）；大小用 power 去水（樣本外略好，校準反而變差所以不做）
+    L, pOL = o.get("c_total"), calibration.two_way(o.get("c_over_odds"), o.get("c_under_odds"))
     lam = lam_from_over(pOL, L) if L and pOL else None
     pO25 = p_over(lam, 2.5) if lam else None
-    Lo, pOLo = o.get("o_total"), no_vig2(o.get("o_over_odds"), o.get("o_under_odds"))
+    Lo, pOLo = o.get("o_total"), calibration.two_way(o.get("o_over_odds"), o.get("o_under_odds"))
     lam_o = lam_from_over(pOLo, Lo) if Lo and pOLo else None
     sp = o.get("c_spread_home")
-    p_sp = no_vig2(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"))
+    p_sp = calibration.two_way(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"))
 
-    # 歷史相似盤口（勝平負 × 大小 交叉）
-    a = football_analogs(pc[0], pc[2], pO25)
+    # 歷史相似盤口（勝平負 × 大小 交叉）—— 用未校準的機率找相似比賽（與歷史欄位同一套定義）
+    a = football_analogs(pc_raw[0], pc_raw[2], pO25)
     n = len(a)
     hist = {}
     if n:
-        # 勝平負用「相似比賽打敗自己市場機率多少」加回這場的市場機率（樣本放寬時不會偏向常見的盤口，10/19 修正）
+        # 勝平負：相似比賽「打敗自己校準後市場機率多少」加回這場的校準機率（10/19 修正）
         clip = lambda x: float(min(0.97, max(0.02, x)))
-        hist = {"H": clip(pc[0] + ((a["ftr"] == "H") - a["pH"]).mean()),
-                "D": clip(pc[1] + ((a["ftr"] == "D") - a["pD"]).mean()),
-                "A": clip(pc[2] + ((a["ftr"] == "A") - a["pA"]).mean()),
+        hist = {"H": clip(pc[0] + ((a["ftr"] == "H") - a["pHc"]).mean()),
+                "D": clip(pc[1] + ((a["ftr"] == "D") - a["pDc"]).mean()),
+                "A": clip(pc[2] + ((a["ftr"] == "A") - a["pAc"]).mean()),
                 "over25": (a["goals"] >= 3).mean(), "goals": a["goals"].mean()}
         if L:
             dec = a[a["goals"] != L]
@@ -295,6 +304,16 @@ def football_model(g: dict) -> dict | None:
                      "p_hist": hist.get("cover"), "n": n},
                     {"key": ("spread", "away"), "name": f"客 {-sp:+g}", "odds": o.get("c_spread_away_odds"), "p_mkt": 1 - p_sp,
                      "p_hist": None if hist.get("cover") is None else 1 - hist["cover"], "n": n}]
+    # 原始（等比例去水、未校準）機率一起記錄，讓 learning.py 用實戰結果檢驗校準有沒有幫助
+    raw = {("1x2", "H"): pc_raw[0], ("1x2", "D"): pc_raw[1], ("1x2", "A"): pc_raw[2]}
+    q = no_vig2(o.get("c_over_odds"), o.get("c_under_odds"))
+    if q:
+        raw[("total", "over")], raw[("total", "under")] = q, 1 - q
+    q = no_vig2(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"))
+    if q:
+        raw[("spread", "home")], raw[("spread", "away")] = q, 1 - q
+    for x in options:
+        x["p_raw"] = raw.get(x["key"], x["p_mkt"])
     rows, best = option_rows(options, sport="football")
     return {"pc": pc, "po": po, "L": L, "pOL": pOL, "lam": lam, "lam_o": lam_o, "pO25": pO25, "sp": sp, "p_sp": p_sp,
             "n": n, "hist": hist, "options": [x for x in options if "p" in x], "rows": rows, "best": best}
@@ -449,9 +468,11 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
         over = a["points"] - a["c_total"]
         hist["over"] = float((over[over != 0] > 0).mean()) if tot else None
         hist["win_resid"] = float(((a["margin"] > 0) - a["pH"]).dropna().mean())   # 相似比賽主隊勝率比市場高多少
-    p_sp = no_vig2(o.get("c_spread_home_odds") or 1.91, o.get("c_spread_away_odds") or 1.91)
+    import calibration
+    # 讓分、不讓分：校準 + 盤口移動（樣本外驗證有效，見 calibration.py）；大小維持原始市場
+    p_sp = calibration.nba_spread(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"), sp, o.get("o_spread_home"))
     p_t = no_vig2(o.get("c_over_odds") or 1.91, o.get("c_under_odds") or 1.91)
-    pm_c = no_vig2(f.get("c_ml_home"), f.get("c_ml_away"))
+    pm_c = calibration.nba_ml(f.get("c_ml_home"), f.get("c_ml_away"), f.get("o_ml_home"), f.get("o_ml_away"))
     inv = lambda x: None if x is None else 1 - x
     home, away = live.team_name(g, "home"), live.team_name(g, "away")
     options = [
@@ -472,6 +493,14 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
                      "p_hist": hist.get("win"), "n": n},
                     {"key": ("ml", "away"), "name": f"{away} 不讓分", "odds": f.get("c_ml_away"), "p_mkt": 1 - pm_c,
                      "p_hist": inv(hist.get("win")), "n": n}]
+    raw = {}
+    q = no_vig2(o.get("c_spread_home_odds") or 1.91, o.get("c_spread_away_odds") or 1.91)
+    raw[("spread", "home")], raw[("spread", "away")] = q, 1 - q
+    q = no_vig2(f.get("c_ml_home"), f.get("c_ml_away"))
+    if q:
+        raw[("ml", "home")], raw[("ml", "away")] = q, 1 - q
+    for x in options:
+        x["p_raw"] = raw.get(x["key"], x["p_mkt"])
     rows, best = option_rows(options, sport="nba")
     return {"sp": sp, "L": tot, "n": n, "hist": hist, "options": [x for x in options if "p" in x],
             "rows": rows, "best": best}

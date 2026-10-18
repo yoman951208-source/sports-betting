@@ -37,6 +37,9 @@ def cmd_backtest(send: bool, dry_run: bool) -> None:
     old = {s.sid for s in backtest.load_strategies()[0] if s.enabled}
     strats = backtest.run(send=send, dry_run=dry_run)
     new = {s.sid for s in strats if s.enabled}
+    if not dry_run:
+        import calibration
+        safe(calibration.refit)  # 市場機率校準層也每週用最新資料重新估計
     if not send and old and old != new:
         added, removed = new - old, old - new
         send_telegram("🔄 <b>每週重新回測：啟用策略有變動</b>\n"
@@ -141,9 +144,18 @@ def daily_jobs() -> list[tuple[str, int | None, int, object]]:
 
 def cloud_once() -> None:
     """雲端（GitHub Actions）每次執行：一輪監控 + 到期的每日工作。狀態由 workflow 存回 data 分支。"""
+    import calibration
     import live
+    from core import kv_get
     if not STRATEGY_FILE.exists():
         safe(cmd_backtest, False, False)
+    conn = db()
+    try:
+        has_cal = bool(kv_get(conn, "calibration"))
+    finally:
+        conn.close()
+    if not has_cal:
+        safe(calibration.refit)
     safe(live.run_cycle)
     run_due_jobs(daily_jobs())
 

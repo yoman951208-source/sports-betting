@@ -229,7 +229,7 @@ def daily(hours: float = 24) -> list[str]:
     try:
         learning.settle_predictions(conn)
         parlay.settle_parlays(conn)
-        learn = learning.update(conn)
+        learn = learning.update(conn) + learning.check_calibration(conn)
         calib = learning.calibration(conn)
         fb = review_games(hours)
         us = us_sports_blocks(conn, hours)

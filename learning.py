@@ -38,6 +38,10 @@ _cache: dict[str, tuple[float, float]] = {}
 
 def ensure(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(predictions)")}
+    if "p_raw" not in cols:  # 10/19 新增：未校準的市場機率（檢驗校準層用）
+        conn.execute("ALTER TABLE predictions ADD COLUMN p_raw REAL")
+        conn.commit()
 
 
 def get_shrink(sport: str) -> float:
@@ -73,14 +77,15 @@ def record_model(conn: sqlite3.Connection, g: dict, m: dict, ts: str | None = No
         market, pick = o["key"]
         conn.execute(
             """INSERT INTO predictions(game_id, market, pick, sport, league, kickoff, line, odds, p_mkt, p_hist, n,
-                                       p_model, shrink, recorded)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                                       p_model, shrink, recorded, p_raw)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(game_id, market, pick) DO UPDATE SET line=excluded.line, odds=excluded.odds,
                  p_mkt=excluded.p_mkt, p_hist=excluded.p_hist, n=excluded.n, p_model=excluded.p_model,
-                 shrink=excluded.shrink, recorded=excluded.recorded
+                 shrink=excluded.shrink, recorded=excluded.recorded, p_raw=excluded.p_raw
                WHERE predictions.result IS NULL""",
             (g["game_id"], market, pick, g["sport"], g["league"], parse_iso(g["kickoff"]).isoformat(),
-             _line_for(m, market), o["odds"], o["p_mkt"], o.get("p_hist"), o.get("n", 0), o["p"], shrink, ts))
+             _line_for(m, market), o["odds"], o["p_mkt"], o.get("p_hist"), o.get("n", 0), o["p"], shrink, ts,
+             o.get("p_raw", o["p_mkt"])))
         rows += 1
     return rows
 
@@ -215,6 +220,43 @@ def update(conn: sqlite3.Connection) -> list[str]:
                      f"最佳權重 {'市場' if best >= MARKET_ONLY else best} → 調整為 {tag}（原 {cur:.0f}）")
         log.info("學習：%s shrink %.0f → %s", sport, cur, tag)
     return lines
+
+
+CAL_MIN_GAMES = 200      # 實戰至少這麼多場才判斷校準層是否該關掉
+CAL_T = 2.0              # 校準比原始差、且 t 值超過這個才關
+
+
+def check_calibration(conn: sqlite3.Connection) -> list[str]:
+    """用實戰結果比較「校準後市場機率」與「原始等比例去水」：校準明顯變差就自動關閉該運動的校準。"""
+    ensure(conn)
+    out = []
+    for sport, zh in (("football", "足球"), ("nba", "NBA")):
+        rows = conn.execute("""SELECT game_id, p_mkt, p_raw, result FROM predictions
+                               WHERE sport=? AND result IN ('W','L') AND p_raw IS NOT NULL
+                                 AND abs(p_raw - p_mkt) > 1e-9""", (sport,)).fetchall()
+        games = {}
+        for r in rows:
+            y = r["result"] == "W"
+            pc = min(0.98, max(0.02, r["p_mkt"]))
+            pr = min(0.98, max(0.02, r["p_raw"]))
+            d = -math.log(pc if y else 1 - pc) + math.log(pr if y else 1 - pr)
+            games[r["game_id"]] = games.get(r["game_id"], 0.0) + d
+        n = len(games)
+        if n < 20:
+            continue
+        diffs = list(games.values())
+        mean = sum(diffs) / n
+        sd = math.sqrt(sum((x - mean) ** 2 for x in diffs) / (n - 1)) or 1e-9
+        t = mean / (sd / math.sqrt(n))
+        off = kv_get(conn, f"calibration_off:{sport}") == "1"
+        verdict = "校準較準" if mean < 0 else "原始較準"
+        if n >= CAL_MIN_GAMES and t > CAL_T and not off:
+            kv_set(conn, f"calibration_off:{sport}", "1")
+            off = True
+            log.info("學習：%s 校準在實戰明顯變差（t=%.2f），自動關閉", sport, t)
+        out.append(f"• {zh}校準層：{n} 場，{verdict}（每場 log loss 差 {mean:+.4f}，t={t:+.2f}）"
+                   + ("｜已自動關閉" if off else f"｜滿 {CAL_MIN_GAMES} 場且 t>{CAL_T:g} 才會關閉"))
+    return out
 
 
 def calibration(conn: sqlite3.Connection, sport: str | None = None) -> list[str]:

@@ -1,0 +1,4027 @@
+{
+ "meta": {
+  "generated": "2026-10-14T09:28:00",
+  "football_games": 8289,
+  "football_range": [
+   "2024-07-26",
+   "2026-10-12"
+  ],
+  "nba_games": 2638,
+  "nba_range": [
+   "2024-10-22",
+   "2026-06-13"
+  ],
+  "mlb_games": 7409,
+  "mlb_range": [
+   "2024-03-20",
+   "2026-10-12"
+  ],
+  "baselines": {
+   "足球盲買主勝": -0.0855,
+   "足球盲買和局": -0.0347,
+   "足球盲買客勝": -0.1122,
+   "足球市場平均抽水": 0.06,
+   "NBA盲買主隊讓分": -0.0285,
+   "NBA不讓分平均抽水": 0.0443,
+   "MLB例行賽盲買主隊": -0.0401,
+   "MLB例行賽盲買熱門": -0.0473,
+   "MLB例行賽大分比例": 0.496,
+   "MLB季後賽盲買主隊": -0.0603,
+   "MLB季後賽盲買熱門": 0.0301,
+   "MLB季後賽大分比例": 0.5304,
+   "MLB季後賽場數": 118,
+   "MLB不讓分平均抽水": 0.0431
+  }
+ },
+ "strategies": [
+  {
+   "sid": "fb_steam_follow_0.03",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "follow",
+   "param": 0.03,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率在開盤→收盤上升 ≥3pp（資金湧入），跟進下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 1856,
+    "hit": 0.4537,
+    "roi": -0.0692,
+    "units": -128.48,
+    "avg_odds": 2.362,
+    "t": -2.63,
+    "p": 0.9957,
+    "max_drawdown": 144.98,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 881,
+      "roi": -0.0608,
+      "hit": 0.4586
+     },
+     "2025-26": {
+      "n": 792,
+      "roi": -0.0901,
+      "hit": 0.4407
+     },
+     "2026-27": {
+      "n": 183,
+      "roi": -0.0193,
+      "hit": 0.4863
+     }
+    },
+    "uplift": -0.0013,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_steam_fade_0.03",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "fade",
+   "param": 0.03,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率下降 ≥3pp（賠率被拉高），反向買這個被冷落的結果",
+   "live_source": "espn",
+   "stats": {
+    "n": 2008,
+    "hit": 0.3635,
+    "roi": -0.0799,
+    "units": -160.46,
+    "avg_odds": 3.038,
+    "t": -2.59,
+    "p": 0.9952,
+    "max_drawdown": 174.37,
+    "max_losing_streak": 15,
+    "by_season": {
+     "2024-25": {
+      "n": 963,
+      "roi": -0.0546,
+      "hit": 0.3614
+     },
+     "2025-26": {
+      "n": 870,
+      "roi": -0.1196,
+      "hit": 0.3655
+     },
+     "2026-27": {
+      "n": 175,
+      "roi": -0.0216,
+      "hit": 0.3657
+     }
+    },
+    "uplift": -0.0032,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_steam_follow_0.05",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "follow",
+   "param": 0.05,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率在開盤→收盤上升 ≥5pp（資金湧入），跟進下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 596,
+    "hit": 0.5017,
+    "roi": -0.0429,
+    "units": -25.57,
+    "avg_odds": 2.115,
+    "t": -1.0,
+    "p": 0.8423,
+    "max_drawdown": 38.66,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 281,
+      "roi": 0.0212,
+      "hit": 0.5374
+     },
+     "2025-26": {
+      "n": 257,
+      "roi": -0.0963,
+      "hit": 0.4747
+     },
+     "2026-27": {
+      "n": 58,
+      "roi": -0.1169,
+      "hit": 0.4483
+     }
+    },
+    "uplift": 0.013,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_steam_fade_0.05",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "fade",
+   "param": 0.05,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率下降 ≥5pp（賠率被拉高），反向買這個被冷落的結果",
+   "live_source": "espn",
+   "stats": {
+    "n": 619,
+    "hit": 0.3813,
+    "roi": -0.0996,
+    "units": -61.68,
+    "avg_odds": 2.759,
+    "t": -1.93,
+    "p": 0.9732,
+    "max_drawdown": 91.04,
+    "max_losing_streak": 15,
+    "by_season": {
+     "2024-25": {
+      "n": 319,
+      "roi": -0.1192,
+      "hit": 0.3668
+     },
+     "2025-26": {
+      "n": 251,
+      "roi": -0.1269,
+      "hit": 0.3865
+     },
+     "2026-27": {
+      "n": 49,
+      "roi": 0.1673,
+      "hit": 0.449
+     }
+    },
+    "uplift": -0.0146,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_steam_follow_0.07",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "follow",
+   "param": 0.07,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率在開盤→收盤上升 ≥7pp（資金湧入），跟進下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 174,
+    "hit": 0.5115,
+    "roi": -0.0975,
+    "units": -16.96,
+    "avg_odds": 1.95,
+    "t": -1.39,
+    "p": 0.9177,
+    "max_drawdown": 22.83,
+    "max_losing_streak": 4,
+    "by_season": {
+     "2024-25": {
+      "n": 84,
+      "roi": 0.0138,
+      "hit": 0.5714
+     },
+     "2025-26": {
+      "n": 74,
+      "roi": -0.2162,
+      "hit": 0.4459
+     },
+     "2026-27": {
+      "n": 16,
+      "roi": -0.1325,
+      "hit": 0.5
+     }
+    },
+    "uplift": -0.0044,
+    "first": "2024-08-04",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_steam_fade_0.07",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "fade",
+   "param": 0.07,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率下降 ≥7pp（賠率被拉高），反向買這個被冷落的結果",
+   "live_source": "espn",
+   "stats": {
+    "n": 213,
+    "hit": 0.338,
+    "roi": -0.2157,
+    "units": -45.94,
+    "avg_odds": 2.705,
+    "t": -2.63,
+    "p": 0.9957,
+    "max_drawdown": 52.71,
+    "max_losing_streak": 18,
+    "by_season": {
+     "2024-25": {
+      "n": 107,
+      "roi": -0.2207,
+      "hit": 0.3271
+     },
+     "2025-26": {
+      "n": 87,
+      "roi": -0.3337,
+      "hit": 0.3103
+     },
+     "2026-27": {
+      "n": 19,
+      "roi": 0.3526,
+      "hit": 0.5263
+     }
+    },
+    "uplift": -0.0608,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_steam_follow_0.1",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "follow",
+   "param": 0.1,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率在開盤→收盤上升 ≥10pp（資金湧入），跟進下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 38,
+    "hit": 0.6053,
+    "roi": 0.0218,
+    "units": 0.83,
+    "avg_odds": 1.844,
+    "t": 0.15,
+    "p": 0.4387,
+    "max_drawdown": 3.13,
+    "max_losing_streak": 3,
+    "by_season": {
+     "2024-25": {
+      "n": 20,
+      "roi": 0.0795,
+      "hit": 0.65
+     },
+     "2025-26": {
+      "n": 15,
+      "roi": 0.0573,
+      "hit": 0.6
+     },
+     "2026-27": {
+      "n": 3,
+      "roi": -0.54,
+      "hit": 0.3333
+     }
+    },
+    "uplift": 0.0661,
+    "first": "2024-08-04",
+    "last": "2026-08-23"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_steam_fade_0.1",
+   "sport": "football",
+   "family": "fb_steam",
+   "mode": "fade",
+   "param": 0.1,
+   "market": "1x2",
+   "title": "1X2 某結果的去水機率下降 ≥10pp（賠率被拉高），反向買這個被冷落的結果",
+   "live_source": "espn",
+   "stats": {
+    "n": 33,
+    "hit": 0.3636,
+    "roi": -0.1682,
+    "units": -5.55,
+    "avg_odds": 2.691,
+    "t": -0.8,
+    "p": 0.7887,
+    "max_drawdown": 9.0,
+    "max_losing_streak": 5,
+    "by_season": {
+     "2024-25": {
+      "n": 17,
+      "roi": -0.0141,
+      "hit": 0.4118
+     },
+     "2025-26": {
+      "n": 13,
+      "roi": -0.3608,
+      "hit": 0.3077
+     },
+     "2026-27": {
+      "n": 3,
+      "roi": -0.2067,
+      "hit": 0.3333
+     }
+    },
+    "uplift": -0.0276,
+    "first": "2024-08-04",
+    "last": "2026-09-06"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ou_follow_0.03",
+   "sport": "football",
+   "family": "fb_ou",
+   "mode": "follow",
+   "param": 0.03,
+   "market": "ou25",
+   "title": "大小 2.5 球的去水機率變動 ≥3pp，跟進變動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 1990,
+    "hit": 0.5698,
+    "roi": -0.0338,
+    "units": -67.26,
+    "avg_odds": 1.76,
+    "t": -1.74,
+    "p": 0.9588,
+    "max_drawdown": 83.36,
+    "max_losing_streak": 6,
+    "by_season": {
+     "2024-25": {
+      "n": 955,
+      "roi": -0.0386,
+      "hit": 0.5634
+     },
+     "2025-26": {
+      "n": 796,
+      "roi": -0.0324,
+      "hit": 0.5678
+     },
+     "2026-27": {
+      "n": 239,
+      "roi": -0.0195,
+      "hit": 0.6025
+     }
+    },
+    "uplift": 0.0179,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ou_fade_0.03",
+   "sport": "football",
+   "family": "fb_ou",
+   "mode": "fade",
+   "param": 0.03,
+   "market": "ou25",
+   "title": "大小 2.5 球的去水機率變動 ≥3pp，反向下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 1990,
+    "hit": 0.4302,
+    "roi": -0.1061,
+    "units": -211.19,
+    "avg_odds": 2.205,
+    "t": -4.42,
+    "p": 1.0,
+    "max_drawdown": 214.84,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 955,
+      "roi": -0.0839,
+      "hit": 0.4366
+     },
+     "2025-26": {
+      "n": 796,
+      "roi": -0.1095,
+      "hit": 0.4322
+     },
+     "2026-27": {
+      "n": 239,
+      "roi": -0.1836,
+      "hit": 0.3975
+     }
+    },
+    "uplift": -0.0179,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ou_follow_0.05",
+   "sport": "football",
+   "family": "fb_ou",
+   "mode": "follow",
+   "param": 0.05,
+   "market": "ou25",
+   "title": "大小 2.5 球的去水機率變動 ≥5pp，跟進變動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 565,
+    "hit": 0.5876,
+    "roi": -0.0332,
+    "units": -18.76,
+    "avg_odds": 1.708,
+    "t": -0.94,
+    "p": 0.8275,
+    "max_drawdown": 30.57,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 255,
+      "roi": -0.0698,
+      "hit": 0.5647
+     },
+     "2025-26": {
+      "n": 217,
+      "roi": -0.0003,
+      "hit": 0.5945
+     },
+     "2026-27": {
+      "n": 93,
+      "roi": -0.0098,
+      "hit": 0.6344
+     }
+    },
+    "uplift": 0.0198,
+    "first": "2024-07-28",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ou_fade_0.05",
+   "sport": "football",
+   "family": "fb_ou",
+   "mode": "fade",
+   "param": 0.05,
+   "market": "ou25",
+   "title": "大小 2.5 球的去水機率變動 ≥5pp，反向下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 565,
+    "hit": 0.4124,
+    "roi": -0.11,
+    "units": -62.14,
+    "avg_odds": 2.287,
+    "t": -2.36,
+    "p": 0.9908,
+    "max_drawdown": 66.61,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 255,
+      "roi": -0.0379,
+      "hit": 0.4353
+     },
+     "2025-26": {
+      "n": 217,
+      "roi": -0.1675,
+      "hit": 0.4055
+     },
+     "2026-27": {
+      "n": 93,
+      "roi": -0.1735,
+      "hit": 0.3656
+     }
+    },
+    "uplift": -0.0198,
+    "first": "2024-07-28",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ou_follow_0.08",
+   "sport": "football",
+   "family": "fb_ou",
+   "mode": "follow",
+   "param": 0.08,
+   "market": "ou25",
+   "title": "大小 2.5 球的去水機率變動 ≥8pp，跟進變動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 54,
+    "hit": 0.7593,
+    "roi": 0.1715,
+    "units": 9.26,
+    "avg_odds": 1.607,
+    "t": 1.82,
+    "p": 0.0347,
+    "max_drawdown": 3.0,
+    "max_losing_streak": 3,
+    "by_season": {
+     "2024-25": {
+      "n": 31,
+      "roi": 0.0116,
+      "hit": 0.6452
+     },
+     "2025-26": {
+      "n": 16,
+      "roi": 0.43,
+      "hit": 0.9375
+     },
+     "2026-27": {
+      "n": 7,
+      "roi": 0.2886,
+      "hit": 0.8571
+     }
+    },
+    "uplift": 0.1563,
+    "first": "2024-08-03",
+    "last": "2026-09-06"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ou_fade_0.08",
+   "sport": "football",
+   "family": "fb_ou",
+   "mode": "fade",
+   "param": 0.08,
+   "market": "ou25",
+   "title": "大小 2.5 球的去水機率變動 ≥8pp，反向下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 54,
+    "hit": 0.2407,
+    "roi": -0.455,
+    "units": -24.57,
+    "avg_odds": 2.496,
+    "t": -3.24,
+    "p": 0.9994,
+    "max_drawdown": 24.94,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 31,
+      "roi": -0.1671,
+      "hit": 0.3548
+     },
+     "2025-26": {
+      "n": 16,
+      "roi": -0.8769,
+      "hit": 0.0625
+     },
+     "2026-27": {
+      "n": 7,
+      "roi": -0.7657,
+      "hit": 0.1429
+     }
+    },
+    "uplift": -0.1563,
+    "first": "2024-08-03",
+    "last": "2026-09-06"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ah_follow_0.25",
+   "sport": "football",
+   "family": "fb_ah",
+   "mode": "follow",
+   "param": 0.25,
+   "market": "ah",
+   "title": "亞洲讓球盤口開盤→收盤移動 ≥0.25 球，跟進盤口移動方向",
+   "live_source": "none",
+   "stats": {
+    "n": 3281,
+    "hit": 0.4711,
+    "roi": -0.0721,
+    "units": -236.46,
+    "avg_odds": 1.953,
+    "t": -4.63,
+    "p": 1.0,
+    "max_drawdown": 245.97,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 1526,
+      "roi": -0.0369,
+      "hit": 0.4489
+     },
+     "2025-26": {
+      "n": 1464,
+      "roi": -0.1072,
+      "hit": 0.4283
+     },
+     "2026-27": {
+      "n": 291,
+      "roi": -0.0794,
+      "hit": 0.4433
+     }
+    },
+    "uplift": -0.014,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ah_fade_0.25",
+   "sport": "football",
+   "family": "fb_ah",
+   "mode": "fade",
+   "param": 0.25,
+   "market": "ah",
+   "title": "亞洲讓球盤口移動 ≥0.25 球，反向下注",
+   "live_source": "none",
+   "stats": {
+    "n": 3281,
+    "hit": 0.5289,
+    "roi": -0.0222,
+    "units": -72.84,
+    "avg_odds": 1.84,
+    "t": -1.52,
+    "p": 0.9353,
+    "max_drawdown": 92.13,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 1526,
+      "roi": -0.0298,
+      "hit": 0.481
+     },
+     "2025-26": {
+      "n": 1464,
+      "roi": -0.0119,
+      "hit": 0.5061
+     },
+     "2026-27": {
+      "n": 291,
+      "roi": -0.0342,
+      "hit": 0.4914
+     }
+    },
+    "uplift": 0.014,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ah_follow_0.5",
+   "sport": "football",
+   "family": "fb_ah",
+   "mode": "follow",
+   "param": 0.5,
+   "market": "ah",
+   "title": "亞洲讓球盤口開盤→收盤移動 ≥0.5 球，跟進盤口移動方向",
+   "live_source": "none",
+   "stats": {
+    "n": 216,
+    "hit": 0.4833,
+    "roi": -0.0545,
+    "units": -11.78,
+    "avg_odds": 1.948,
+    "t": -0.87,
+    "p": 0.8072,
+    "max_drawdown": 19.86,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 109,
+      "roi": -0.0762,
+      "hit": 0.4587
+     },
+     "2025-26": {
+      "n": 81,
+      "roi": -0.0356,
+      "hit": 0.4691
+     },
+     "2026-27": {
+      "n": 26,
+      "roi": -0.0227,
+      "hit": 0.5
+     }
+    },
+    "uplift": -0.0035,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ah_fade_0.5",
+   "sport": "football",
+   "family": "fb_ah",
+   "mode": "fade",
+   "param": 0.5,
+   "market": "ah",
+   "title": "亞洲讓球盤口移動 ≥0.5 球，反向下注",
+   "live_source": "none",
+   "stats": {
+    "n": 216,
+    "hit": 0.5167,
+    "roi": -0.0389,
+    "units": -8.39,
+    "avg_odds": 1.844,
+    "t": -0.65,
+    "p": 0.7428,
+    "max_drawdown": 11.55,
+    "max_losing_streak": 5,
+    "by_season": {
+     "2024-25": {
+      "n": 109,
+      "roi": 0.0105,
+      "hit": 0.5321
+     },
+     "2025-26": {
+      "n": 81,
+      "roi": -0.0874,
+      "hit": 0.4691
+     },
+     "2026-27": {
+      "n": 26,
+      "roi": -0.0946,
+      "hit": 0.4615
+     }
+    },
+    "uplift": 0.0035,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_sharp_div_0.01",
+   "sport": "football",
+   "family": "fb_sharp",
+   "mode": "follow",
+   "param": 0.01,
+   "market": "1x2",
+   "title": "Betfair 交易所（尖銳盤）比市場平均更看好某結果 ≥1pp，以平均賠率跟尖銳盤",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 2712,
+    "hit": 0.5642,
+    "roi": -0.0331,
+    "units": -89.78,
+    "avg_odds": 1.872,
+    "t": -1.82,
+    "p": 0.9658,
+    "max_drawdown": 109.13,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 1168,
+      "roi": -0.0353,
+      "hit": 0.5839
+     },
+     "2025-26": {
+      "n": 1329,
+      "roi": -0.0413,
+      "hit": 0.5478
+     },
+     "2026-27": {
+      "n": 215,
+      "roi": 0.0296,
+      "hit": 0.5581
+     }
+    },
+    "uplift": 0.0136,
+    "first": "2024-07-26",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_sharp_div_0.02",
+   "sport": "football",
+   "family": "fb_sharp",
+   "mode": "follow",
+   "param": 0.02,
+   "market": "1x2",
+   "title": "Betfair 交易所（尖銳盤）比市場平均更看好某結果 ≥2pp，以平均賠率跟尖銳盤",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 554,
+    "hit": 0.6769,
+    "roi": -0.0104,
+    "units": -5.76,
+    "avg_odds": 1.504,
+    "t": -0.32,
+    "p": 0.6266,
+    "max_drawdown": 20.55,
+    "max_losing_streak": 5,
+    "by_season": {
+     "2024-25": {
+      "n": 214,
+      "roi": -0.038,
+      "hit": 0.6636
+     },
+     "2025-26": {
+      "n": 304,
+      "roi": -0.0077,
+      "hit": 0.6743
+     },
+     "2026-27": {
+      "n": 36,
+      "roi": 0.1311,
+      "hit": 0.7778
+     }
+    },
+    "uplift": 0.0264,
+    "first": "2024-07-26",
+    "last": "2026-10-10"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_sharp_div_0.03",
+   "sport": "football",
+   "family": "fb_sharp",
+   "mode": "follow",
+   "param": 0.03,
+   "market": "1x2",
+   "title": "Betfair 交易所（尖銳盤）比市場平均更看好某結果 ≥3pp，以平均賠率跟尖銳盤",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 80,
+    "hit": 0.675,
+    "roi": -0.0526,
+    "units": -4.21,
+    "avg_odds": 1.561,
+    "t": -0.65,
+    "p": 0.7435,
+    "max_drawdown": 9.72,
+    "max_losing_streak": 4,
+    "by_season": {
+     "2024-25": {
+      "n": 23,
+      "roi": -0.2239,
+      "hit": 0.5652
+     },
+     "2025-26": {
+      "n": 55,
+      "roi": 0.0053,
+      "hit": 0.7091
+     },
+     "2026-27": {
+      "n": 2,
+      "roi": 0.325,
+      "hit": 1.0
+     }
+    },
+    "uplift": 0.0208,
+    "first": "2024-07-27",
+    "last": "2026-08-23"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_value_best_0.03",
+   "sport": "football",
+   "family": "fb_value",
+   "mode": "close",
+   "param": 0.03,
+   "market": "1x2",
+   "title": "收盤時最高賠率比 Betfair 公平賠率高 ≥3%（各家比價找價值）",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 1085,
+    "hit": 0.3143,
+    "roi": 0.0146,
+    "units": 15.82,
+    "avg_odds": 3.832,
+    "t": 0.29,
+    "p": 0.3865,
+    "max_drawdown": 74.68,
+    "max_losing_streak": 15,
+    "by_season": {
+     "2024-25": {
+      "n": 813,
+      "roi": -0.0366,
+      "hit": 0.3063
+     },
+     "2025-26": {
+      "n": 232,
+      "roi": 0.1356,
+      "hit": 0.3362
+     },
+     "2026-27": {
+      "n": 40,
+      "roi": 0.3538,
+      "hit": 0.35
+     }
+    },
+    "uplift": -0.0089,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "fb_value_open_0.03",
+   "sport": "football",
+   "family": "fb_value",
+   "mode": "open",
+   "param": 0.03,
+   "market": "1x2",
+   "title": "早盤最高賠率比 Betfair 早盤公平賠率高 ≥3%（提早下注找價值）",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 910,
+    "hit": 0.2791,
+    "roi": -0.0097,
+    "units": -8.83,
+    "avg_odds": 3.971,
+    "t": -0.17,
+    "p": 0.5688,
+    "max_drawdown": 66.16,
+    "max_losing_streak": 28,
+    "by_season": {
+     "2024-25": {
+      "n": 591,
+      "roi": -0.0232,
+      "hit": 0.2724
+     },
+     "2025-26": {
+      "n": 258,
+      "roi": 0.0283,
+      "hit": 0.2946
+     },
+     "2026-27": {
+      "n": 61,
+      "roi": -0.0397,
+      "hit": 0.2787
+     }
+    },
+    "uplift": -0.0419,
+    "first": "2024-07-28",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_value_best_0.05",
+   "sport": "football",
+   "family": "fb_value",
+   "mode": "close",
+   "param": 0.05,
+   "market": "1x2",
+   "title": "收盤時最高賠率比 Betfair 公平賠率高 ≥5%（各家比價找價值）",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 427,
+    "hit": 0.2974,
+    "roi": -0.0246,
+    "units": -10.5,
+    "avg_odds": 3.932,
+    "t": -0.3,
+    "p": 0.6196,
+    "max_drawdown": 56.7,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 323,
+      "roi": -0.0724,
+      "hit": 0.2941
+     },
+     "2025-26": {
+      "n": 88,
+      "roi": 0.035,
+      "hit": 0.2841
+     },
+     "2026-27": {
+      "n": 16,
+      "roi": 0.6125,
+      "hit": 0.4375
+     }
+    },
+    "uplift": -0.029,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_value_open_0.05",
+   "sport": "football",
+   "family": "fb_value",
+   "mode": "open",
+   "param": 0.05,
+   "market": "1x2",
+   "title": "早盤最高賠率比 Betfair 早盤公平賠率高 ≥5%（提早下注找價值）",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 427,
+    "hit": 0.2857,
+    "roi": 0.053,
+    "units": 22.61,
+    "avg_odds": 4.133,
+    "t": 0.61,
+    "p": 0.2712,
+    "max_drawdown": 38.35,
+    "max_losing_streak": 14,
+    "by_season": {
+     "2024-25": {
+      "n": 258,
+      "roi": 0.0149,
+      "hit": 0.2674
+     },
+     "2025-26": {
+      "n": 121,
+      "roi": 0.1545,
+      "hit": 0.314
+     },
+     "2026-27": {
+      "n": 48,
+      "roi": 0.0017,
+      "hit": 0.3125
+     }
+    },
+    "uplift": -0.0653,
+    "first": "2024-07-28",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "fb_value_best_0.08",
+   "sport": "football",
+   "family": "fb_value",
+   "mode": "close",
+   "param": 0.08,
+   "market": "1x2",
+   "title": "收盤時最高賠率比 Betfair 公平賠率高 ≥8%（各家比價找價值）",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 142,
+    "hit": 0.2958,
+    "roi": 0.0131,
+    "units": 1.86,
+    "avg_odds": 4.043,
+    "t": 0.09,
+    "p": 0.4647,
+    "max_drawdown": 27.23,
+    "max_losing_streak": 12,
+    "by_season": {
+     "2024-25": {
+      "n": 99,
+      "roi": -0.1525,
+      "hit": 0.2525
+     },
+     "2025-26": {
+      "n": 37,
+      "roi": 0.3205,
+      "hit": 0.3784
+     },
+     "2026-27": {
+      "n": 6,
+      "roi": 0.85,
+      "hit": 0.5
+     }
+    },
+    "uplift": -0.0367,
+    "first": "2024-08-04",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "fb_value_open_0.08",
+   "sport": "football",
+   "family": "fb_value",
+   "mode": "open",
+   "param": 0.08,
+   "market": "1x2",
+   "title": "早盤最高賠率比 Betfair 早盤公平賠率高 ≥8%（提早下注找價值）",
+   "live_source": "oddsapi",
+   "stats": {
+    "n": 261,
+    "hit": 0.295,
+    "roi": 0.0598,
+    "units": 15.61,
+    "avg_odds": 4.003,
+    "t": 0.54,
+    "p": 0.2934,
+    "max_drawdown": 28.04,
+    "max_losing_streak": 17,
+    "by_season": {
+     "2024-25": {
+      "n": 163,
+      "roi": 0.0488,
+      "hit": 0.2822
+     },
+     "2025-26": {
+      "n": 65,
+      "roi": 0.1722,
+      "hit": 0.3385
+     },
+     "2026-27": {
+      "n": 33,
+      "roi": -0.107,
+      "hit": 0.2727
+     }
+    },
+    "uplift": -0.1035,
+    "first": "2024-07-28",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "fb_cross_dog_low_1.0",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "dog_low",
+   "param": 1.0,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1 球的比賽，預期低進球（大2.5 <50%）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 197,
+    "hit": 0.5926,
+    "roi": 0.0519,
+    "units": 10.23,
+    "avg_odds": 1.883,
+    "t": 0.97,
+    "p": 0.1657,
+    "max_drawdown": 7.61,
+    "max_losing_streak": 4,
+    "by_season": {
+     "2024-25": {
+      "n": 92,
+      "roi": 0.0044,
+      "hit": 0.3804
+     },
+     "2025-26": {
+      "n": 100,
+      "roi": 0.0644,
+      "hit": 0.41
+     },
+     "2026-27": {
+      "n": 5,
+      "roi": 0.676,
+      "hit": 0.8
+     }
+    },
+    "uplift": 0.0866,
+    "first": "2024-08-15",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "fb_cross_fav_low_1.0",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "fav_low",
+   "param": 1.0,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1 球的比賽，預期低進球（大2.5 <50%）→ 買讓球方",
+   "live_source": "espn",
+   "stats": {
+    "n": 197,
+    "hit": 0.4074,
+    "roi": -0.1144,
+    "units": -22.54,
+    "avg_odds": 1.92,
+    "t": -2.08,
+    "p": 0.9811,
+    "max_drawdown": 28.13,
+    "max_losing_streak": 5,
+    "by_season": {
+     "2024-25": {
+      "n": 92,
+      "roi": -0.0474,
+      "hit": 0.3152
+     },
+     "2025-26": {
+      "n": 100,
+      "roi": -0.1418,
+      "hit": 0.26
+     },
+     "2026-27": {
+      "n": 5,
+      "roi": -0.8,
+      "hit": 0.0
+     }
+    },
+    "uplift": -0.0866,
+    "first": "2024-08-15",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_cross_dog_high_1.0",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "dog_high",
+   "param": 1.0,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1 球的比賽，預期高進球（大2.5 ≥60%）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 1264,
+    "hit": 0.5188,
+    "roi": -0.0197,
+    "units": -24.9,
+    "avg_odds": 1.895,
+    "t": -0.8,
+    "p": 0.7881,
+    "max_drawdown": 47.83,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 614,
+      "roi": 0.026,
+      "hit": 0.5081
+     },
+     "2025-26": {
+      "n": 491,
+      "roi": -0.0555,
+      "hit": 0.4521
+     },
+     "2026-27": {
+      "n": 159,
+      "roi": -0.0854,
+      "hit": 0.4654
+     }
+    },
+    "uplift": 0.0186,
+    "first": "2024-07-26",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_cross_fav_high_1.0",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "fav_high",
+   "param": 1.0,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1 球的比賽，預期高進球（大2.5 ≥60%）→ 買讓球方",
+   "live_source": "espn",
+   "stats": {
+    "n": 1264,
+    "hit": 0.4812,
+    "roi": -0.076,
+    "units": -96.03,
+    "avg_odds": 1.898,
+    "t": -3.09,
+    "p": 0.999,
+    "max_drawdown": 107.0,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 614,
+      "roi": -0.1021,
+      "hit": 0.4316
+     },
+     "2025-26": {
+      "n": 491,
+      "roi": -0.0567,
+      "hit": 0.4481
+     },
+     "2026-27": {
+      "n": 159,
+      "roi": -0.0345,
+      "hit": 0.4969
+     }
+    },
+    "uplift": -0.0186,
+    "first": "2024-07-26",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_cross_dog_low_1.5",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "dog_low",
+   "param": 1.5,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1.5 球的比賽，預期低進球（大2.5 <50%）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 3,
+    "hit": 1.0,
+    "roi": 0.8067,
+    "units": 2.42,
+    "avg_odds": 1.807,
+    "t": 39.78,
+    "p": 0.0,
+    "max_drawdown": 0.0,
+    "max_losing_streak": 0,
+    "by_season": {
+     "2025-26": {
+      "n": 3,
+      "roi": 0.8067,
+      "hit": 1.0
+     }
+    },
+    "uplift": 0.4814,
+    "first": "2025-09-12",
+    "last": "2026-01-07"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_cross_fav_low_1.5",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "fav_low",
+   "param": 1.5,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1.5 球的比賽，預期低進球（大2.5 <50%）→ 買讓球方",
+   "live_source": "espn",
+   "stats": {
+    "n": 3,
+    "hit": 0.0,
+    "roi": -1.0,
+    "units": -3.0,
+    "avg_odds": 1.947,
+    "t": 0.0,
+    "p": 0.5,
+    "max_drawdown": 3.0,
+    "max_losing_streak": 3,
+    "by_season": {
+     "2025-26": {
+      "n": 3,
+      "roi": -1.0,
+      "hit": 0.0
+     }
+    },
+    "uplift": -0.4814,
+    "first": "2025-09-12",
+    "last": "2026-01-07"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_cross_dog_high_1.5",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "dog_high",
+   "param": 1.5,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1.5 球的比賽，預期高進球（大2.5 ≥60%）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 828,
+    "hit": 0.5058,
+    "roi": -0.0154,
+    "units": -12.74,
+    "avg_odds": 1.894,
+    "t": -0.5,
+    "p": 0.691,
+    "max_drawdown": 29.68,
+    "max_losing_streak": 6,
+    "by_season": {
+     "2024-25": {
+      "n": 423,
+      "roi": 0.0242,
+      "hit": 0.4965
+     },
+     "2025-26": {
+      "n": 307,
+      "roi": -0.0478,
+      "hit": 0.456
+     },
+     "2026-27": {
+      "n": 98,
+      "roi": -0.0848,
+      "hit": 0.4592
+     }
+    },
+    "uplift": 0.0051,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_cross_fav_high_1.5",
+   "sport": "football",
+   "family": "fb_cross",
+   "mode": "fav_high",
+   "param": 1.5,
+   "market": "ah",
+   "title": "[交叉] 讓球 ≥1.5 球的比賽，預期高進球（大2.5 ≥60%）→ 買讓球方",
+   "live_source": "espn",
+   "stats": {
+    "n": 828,
+    "hit": 0.4942,
+    "roi": -0.0827,
+    "units": -68.45,
+    "avg_odds": 1.9,
+    "t": -2.67,
+    "p": 0.9962,
+    "max_drawdown": 74.8,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 423,
+      "roi": -0.1013,
+      "hit": 0.4492
+     },
+     "2025-26": {
+      "n": 307,
+      "roi": -0.0701,
+      "hit": 0.4723
+     },
+     "2026-27": {
+      "n": 98,
+      "roi": -0.0416,
+      "hit": 0.5204
+     }
+    },
+    "uplift": -0.0051,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_crossou_deep_over",
+   "sport": "football",
+   "family": "fb_crossou",
+   "mode": "deep_over",
+   "param": 0,
+   "market": "ou25",
+   "title": "[交叉] 讓球 ≥1.5 球（實力懸殊）→ 買大 2.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 1015,
+    "hit": 0.6818,
+    "roi": -0.0291,
+    "units": -29.54,
+    "avg_odds": 1.441,
+    "t": -1.37,
+    "p": 0.9152,
+    "max_drawdown": 41.1,
+    "max_losing_streak": 6,
+    "by_season": {
+     "2024-25": {
+      "n": 509,
+      "roi": -0.0499,
+      "hit": 0.668
+     },
+     "2025-26": {
+      "n": 399,
+      "roi": -0.0181,
+      "hit": 0.6817
+     },
+     "2026-27": {
+      "n": 107,
+      "roi": 0.0287,
+      "hit": 0.7477
+     }
+    },
+    "uplift": 0.0216,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_crossou_deep_under",
+   "sport": "football",
+   "family": "fb_crossou",
+   "mode": "deep_under",
+   "param": 0,
+   "market": "ou25",
+   "title": "[交叉] 讓球 ≥1.5 球（實力懸殊）→ 買小 2.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 1015,
+    "hit": 0.3182,
+    "roi": -0.1262,
+    "units": -128.11,
+    "avg_odds": 2.894,
+    "t": -3.06,
+    "p": 0.9989,
+    "max_drawdown": 147.65,
+    "max_losing_streak": 18,
+    "by_season": {
+     "2024-25": {
+      "n": 509,
+      "roi": -0.0734,
+      "hit": 0.332
+     },
+     "2025-26": {
+      "n": 399,
+      "roi": -0.1652,
+      "hit": 0.3183
+     },
+     "2026-27": {
+      "n": 107,
+      "roi": -0.232,
+      "hit": 0.2523
+     }
+    },
+    "uplift": -0.0216,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_crossou_level_over",
+   "sport": "football",
+   "family": "fb_crossou",
+   "mode": "level_over",
+   "param": 0,
+   "market": "ou25",
+   "title": "[交叉] 讓球 ≤0.25 球（勢均力敵）→ 買大 2.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 3266,
+    "hit": 0.4905,
+    "roi": -0.0426,
+    "units": -139.07,
+    "avg_odds": 2.001,
+    "t": -2.43,
+    "p": 0.9925,
+    "max_drawdown": 158.24,
+    "max_losing_streak": 13,
+    "by_season": {
+     "2024-25": {
+      "n": 1472,
+      "roi": -0.0766,
+      "hit": 0.4633
+     },
+     "2025-26": {
+      "n": 1519,
+      "roi": -0.024,
+      "hit": 0.503
+     },
+     "2026-27": {
+      "n": 275,
+      "roi": 0.0368,
+      "hit": 0.5673
+     }
+    },
+    "uplift": 0.0077,
+    "first": "2024-07-27",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_crossou_level_under",
+   "sport": "football",
+   "family": "fb_crossou",
+   "mode": "level_under",
+   "param": 0,
+   "market": "ou25",
+   "title": "[交叉] 讓球 ≤0.25 球（勢均力敵）→ 買小 2.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 3266,
+    "hit": 0.5095,
+    "roi": -0.0719,
+    "units": -234.78,
+    "avg_odds": 1.864,
+    "t": -4.41,
+    "p": 1.0,
+    "max_drawdown": 242.1,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 1472,
+      "roi": -0.0236,
+      "hit": 0.5367
+     },
+     "2025-26": {
+      "n": 1519,
+      "roi": -0.0988,
+      "hit": 0.497
+     },
+     "2026-27": {
+      "n": 275,
+      "roi": -0.1819,
+      "hit": 0.4327
+     }
+    },
+    "uplift": -0.0077,
+    "first": "2024-07-27",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ahou_agree",
+   "sport": "football",
+   "family": "fb_ahou",
+   "mode": "agree",
+   "param": 0.25,
+   "market": "ah",
+   "title": "[交叉] 讓球盤往某隊移動、大小盤也往同一劇本移動（強隊+大球 / 弱隊+小球）→ 跟進讓球",
+   "live_source": "none",
+   "stats": {
+    "n": 712,
+    "hit": 0.4868,
+    "roi": -0.0697,
+    "units": -49.65,
+    "avg_odds": 1.924,
+    "t": -2.1,
+    "p": 0.9819,
+    "max_drawdown": 59.76,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 348,
+      "roi": -0.0634,
+      "hit": 0.4655
+     },
+     "2025-26": {
+      "n": 279,
+      "roi": -0.1015,
+      "hit": 0.4552
+     },
+     "2026-27": {
+      "n": 85,
+      "roi": 0.0085,
+      "hit": 0.5176
+     }
+    },
+    "uplift": -0.0056,
+    "first": "2024-07-26",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "fb_ahou_disagree",
+   "sport": "football",
+   "family": "fb_ahou",
+   "mode": "disagree",
+   "param": 0.25,
+   "market": "ah",
+   "title": "[交叉] 讓球盤與大小盤的移動方向互相矛盾 → 跟進讓球",
+   "live_source": "none",
+   "stats": {
+    "n": 168,
+    "hit": 0.4534,
+    "roi": -0.1007,
+    "units": -16.92,
+    "avg_odds": 1.976,
+    "t": -1.46,
+    "p": 0.9274,
+    "max_drawdown": 26.41,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 82,
+      "roi": -0.0941,
+      "hit": 0.4146
+     },
+     "2025-26": {
+      "n": 65,
+      "roi": -0.1955,
+      "hit": 0.4
+     },
+     "2026-27": {
+      "n": 21,
+      "roi": 0.1671,
+      "hit": 0.619
+     }
+    },
+    "uplift": -0.0254,
+    "first": "2024-07-27",
+    "last": "2026-10-11"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_spread_follow_1.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "follow",
+   "param": 1.0,
+   "market": "spread",
+   "title": "讓分盤開盤→收盤移動 ≥1 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 2011,
+    "hit": 0.5206,
+    "roi": -0.0043,
+    "units": -8.72,
+    "avg_odds": 1.914,
+    "t": -0.2,
+    "p": 0.5806,
+    "max_drawdown": 47.39,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 1014,
+      "roi": -0.0082,
+      "hit": 0.5178
+     },
+     "2025-26": {
+      "n": 997,
+      "roi": -0.0004,
+      "hit": 0.5236
+     }
+    },
+    "uplift": 0.022,
+    "first": "2024-10-23",
+    "last": "2026-06-10"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_spread_fade_1.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "fade",
+   "param": 1.0,
+   "market": "spread",
+   "title": "讓分盤移動 ≥1 分，反向下注（賭市場反應過度）",
+   "live_source": "espn",
+   "stats": {
+    "n": 2011,
+    "hit": 0.4794,
+    "roi": -0.0884,
+    "units": -177.85,
+    "avg_odds": 1.904,
+    "t": -4.17,
+    "p": 1.0,
+    "max_drawdown": 186.08,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 1014,
+      "roi": -0.082,
+      "hit": 0.4822
+     },
+     "2025-26": {
+      "n": 997,
+      "roi": -0.095,
+      "hit": 0.4764
+     }
+    },
+    "uplift": -0.022,
+    "first": "2024-10-23",
+    "last": "2026-06-10"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_spread_follow_2.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "follow",
+   "param": 2.0,
+   "market": "spread",
+   "title": "讓分盤開盤→收盤移動 ≥2 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 1012,
+    "hit": 0.5326,
+    "roi": 0.0199,
+    "units": 20.17,
+    "avg_odds": 1.916,
+    "t": 0.66,
+    "p": 0.2537,
+    "max_drawdown": 32.34,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 552,
+      "roi": -0.0139,
+      "hit": 0.5145
+     },
+     "2025-26": {
+      "n": 460,
+      "roi": 0.0605,
+      "hit": 0.5543
+     }
+    },
+    "uplift": 0.0344,
+    "first": "2024-10-23",
+    "last": "2026-05-26"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "nba_spread_fade_2.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "fade",
+   "param": 2.0,
+   "market": "spread",
+   "title": "讓分盤移動 ≥2 分，反向下注（賭市場反應過度）",
+   "live_source": "espn",
+   "stats": {
+    "n": 1012,
+    "hit": 0.4674,
+    "roi": -0.1113,
+    "units": -112.67,
+    "avg_odds": 1.903,
+    "t": -3.73,
+    "p": 0.9999,
+    "max_drawdown": 122.44,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 552,
+      "roi": -0.076,
+      "hit": 0.4855
+     },
+     "2025-26": {
+      "n": 460,
+      "roi": -0.1538,
+      "hit": 0.4457
+     }
+    },
+    "uplift": -0.0344,
+    "first": "2024-10-23",
+    "last": "2026-05-26"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_spread_follow_3.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "follow",
+   "param": 3.0,
+   "market": "spread",
+   "title": "讓分盤開盤→收盤移動 ≥3 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 544,
+    "hit": 0.5404,
+    "roi": 0.0331,
+    "units": 18.03,
+    "avg_odds": 1.913,
+    "t": 0.81,
+    "p": 0.209,
+    "max_drawdown": 16.47,
+    "max_losing_streak": 6,
+    "by_season": {
+     "2024-25": {
+      "n": 314,
+      "roi": 0.0277,
+      "hit": 0.5382
+     },
+     "2025-26": {
+      "n": 230,
+      "roi": 0.0405,
+      "hit": 0.5435
+     }
+    },
+    "uplift": 0.0415,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "nba_spread_fade_3.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "fade",
+   "param": 3.0,
+   "market": "spread",
+   "title": "讓分盤移動 ≥3 分，反向下注（賭市場反應過度）",
+   "live_source": "espn",
+   "stats": {
+    "n": 544,
+    "hit": 0.4596,
+    "roi": -0.1256,
+    "units": -68.31,
+    "avg_odds": 1.905,
+    "t": -3.08,
+    "p": 0.999,
+    "max_drawdown": 77.85,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 314,
+      "roi": -0.1197,
+      "hit": 0.4618
+     },
+     "2025-26": {
+      "n": 230,
+      "roi": -0.1336,
+      "hit": 0.4565
+     }
+    },
+    "uplift": -0.0415,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_spread_follow_4.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "follow",
+   "param": 4.0,
+   "market": "spread",
+   "title": "讓分盤開盤→收盤移動 ≥4 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 294,
+    "hit": 0.5578,
+    "roi": 0.0646,
+    "units": 18.99,
+    "avg_odds": 1.911,
+    "t": 1.17,
+    "p": 0.1218,
+    "max_drawdown": 12.16,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 179,
+      "roi": 0.0556,
+      "hit": 0.5531
+     },
+     "2025-26": {
+      "n": 115,
+      "roi": 0.0786,
+      "hit": 0.5652
+     }
+    },
+    "uplift": 0.0583,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "nba_spread_fade_4.0",
+   "sport": "nba",
+   "family": "nba_spread",
+   "mode": "fade",
+   "param": 4.0,
+   "market": "spread",
+   "title": "讓分盤移動 ≥4 分，反向下注（賭市場反應過度）",
+   "live_source": "espn",
+   "stats": {
+    "n": 294,
+    "hit": 0.4422,
+    "roi": -0.158,
+    "units": -46.44,
+    "avg_odds": 1.907,
+    "t": -2.86,
+    "p": 0.9979,
+    "max_drawdown": 54.98,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 179,
+      "roi": -0.1489,
+      "hit": 0.4469
+     },
+     "2025-26": {
+      "n": 115,
+      "roi": -0.172,
+      "hit": 0.4348
+     }
+    },
+    "uplift": -0.0583,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_total_follow_2.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "follow",
+   "param": 2.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥2 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 1732,
+    "hit": 0.5173,
+    "roi": -0.0122,
+    "units": -21.12,
+    "avg_odds": 1.912,
+    "t": -0.53,
+    "p": 0.7025,
+    "max_drawdown": 50.22,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 898,
+      "roi": 0.0111,
+      "hit": 0.529
+     },
+     "2025-26": {
+      "n": 834,
+      "roi": -0.0373,
+      "hit": 0.5048
+     }
+    },
+    "uplift": 0.0182,
+    "first": "2024-10-23",
+    "last": "2026-06-05"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_total_fade_2.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "fade",
+   "param": 2.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥2 分，反向下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 1732,
+    "hit": 0.4827,
+    "roi": -0.0818,
+    "units": -141.67,
+    "avg_odds": 1.905,
+    "t": -3.58,
+    "p": 0.9998,
+    "max_drawdown": 162.03,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 898,
+      "roi": -0.1024,
+      "hit": 0.471
+     },
+     "2025-26": {
+      "n": 834,
+      "roi": -0.0596,
+      "hit": 0.4952
+     }
+    },
+    "uplift": -0.0182,
+    "first": "2024-10-23",
+    "last": "2026-06-05"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_total_follow_3.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "follow",
+   "param": 3.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥3 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 1233,
+    "hit": 0.5247,
+    "roi": 0.0019,
+    "units": 2.37,
+    "avg_odds": 1.912,
+    "t": 0.07,
+    "p": 0.4718,
+    "max_drawdown": 38.6,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 674,
+      "roi": 0.0262,
+      "hit": 0.5371
+     },
+     "2025-26": {
+      "n": 559,
+      "roi": -0.0273,
+      "hit": 0.5098
+     }
+    },
+    "uplift": 0.0256,
+    "first": "2024-10-23",
+    "last": "2026-06-05"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "nba_total_fade_3.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "fade",
+   "param": 3.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥3 分，反向下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 1233,
+    "hit": 0.4753,
+    "roi": -0.0958,
+    "units": -118.1,
+    "avg_odds": 1.905,
+    "t": -3.54,
+    "p": 0.9998,
+    "max_drawdown": 129.8,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 674,
+      "roi": -0.1175,
+      "hit": 0.4629
+     },
+     "2025-26": {
+      "n": 559,
+      "roi": -0.0696,
+      "hit": 0.4902
+     }
+    },
+    "uplift": -0.0256,
+    "first": "2024-10-23",
+    "last": "2026-06-05"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_total_follow_4.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "follow",
+   "param": 4.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥4 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 858,
+    "hit": 0.521,
+    "roi": -0.0054,
+    "units": -4.6,
+    "avg_odds": 1.912,
+    "t": -0.16,
+    "p": 0.5654,
+    "max_drawdown": 34.19,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 491,
+      "roi": 0.0426,
+      "hit": 0.5458
+     },
+     "2025-26": {
+      "n": 367,
+      "roi": -0.0695,
+      "hit": 0.4877
+     }
+    },
+    "uplift": 0.022,
+    "first": "2024-10-23",
+    "last": "2026-05-22"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_total_fade_4.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "fade",
+   "param": 4.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥4 分，反向下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 858,
+    "hit": 0.479,
+    "roi": -0.0892,
+    "units": -76.57,
+    "avg_odds": 1.904,
+    "t": -2.75,
+    "p": 0.997,
+    "max_drawdown": 84.37,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 491,
+      "roi": -0.135,
+      "hit": 0.4542
+     },
+     "2025-26": {
+      "n": 367,
+      "roi": -0.028,
+      "hit": 0.5123
+     }
+    },
+    "uplift": -0.022,
+    "first": "2024-10-23",
+    "last": "2026-05-22"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_total_follow_6.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "follow",
+   "param": 6.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥6 分，跟進移動方向",
+   "live_source": "espn",
+   "stats": {
+    "n": 365,
+    "hit": 0.5178,
+    "roi": -0.0111,
+    "units": -4.06,
+    "avg_odds": 1.912,
+    "t": -0.22,
+    "p": 0.588,
+    "max_drawdown": 20.89,
+    "max_losing_streak": 6,
+    "by_season": {
+     "2024-25": {
+      "n": 250,
+      "roi": 0.0467,
+      "hit": 0.548
+     },
+     "2025-26": {
+      "n": 115,
+      "roi": -0.1369,
+      "hit": 0.4522
+     }
+    },
+    "uplift": 0.0187,
+    "first": "2024-10-23",
+    "last": "2026-05-03"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_total_fade_6.0",
+   "sport": "nba",
+   "family": "nba_total",
+   "mode": "fade",
+   "param": 6.0,
+   "market": "total",
+   "title": "大小分盤口移動 ≥6 分，反向下注",
+   "live_source": "espn",
+   "stats": {
+    "n": 365,
+    "hit": 0.4822,
+    "roi": -0.0828,
+    "units": -30.23,
+    "avg_odds": 1.905,
+    "t": -1.66,
+    "p": 0.9517,
+    "max_drawdown": 42.17,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 250,
+      "roi": -0.1392,
+      "hit": 0.452
+     },
+     "2025-26": {
+      "n": 115,
+      "roi": 0.0397,
+      "hit": 0.5478
+     }
+    },
+    "uplift": -0.0187,
+    "first": "2024-10-23",
+    "last": "2026-05-03"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_ml_follow_0.03",
+   "sport": "nba",
+   "family": "nba_ml",
+   "mode": "follow",
+   "param": 0.03,
+   "market": "ml",
+   "title": "不讓分勝率（去水）變動 ≥3pp，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 1058,
+    "hit": 0.5435,
+    "roi": -0.0102,
+    "units": -10.83,
+    "avg_odds": 2.1,
+    "t": -0.31,
+    "p": 0.6231,
+    "max_drawdown": 48.63,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 557,
+      "roi": -0.0208,
+      "hit": 0.5224
+     },
+     "2025-26": {
+      "n": 501,
+      "roi": 0.0015,
+      "hit": 0.5669
+     }
+    },
+    "uplift": 0.0133,
+    "first": "2024-10-23",
+    "last": "2026-06-08"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_ml_fade_0.03",
+   "sport": "nba",
+   "family": "nba_ml",
+   "mode": "fade",
+   "param": 0.03,
+   "market": "ml",
+   "title": "不讓分勝率（去水）變動 ≥3pp，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 1151,
+    "hit": 0.4014,
+    "roi": -0.0709,
+    "units": -81.63,
+    "avg_odds": 2.773,
+    "t": -1.86,
+    "p": 0.9687,
+    "max_drawdown": 93.49,
+    "max_losing_streak": 13,
+    "by_season": {
+     "2024-25": {
+      "n": 594,
+      "roi": -0.0658,
+      "hit": 0.4141
+     },
+     "2025-26": {
+      "n": 557,
+      "roi": -0.0764,
+      "hit": 0.3878
+     }
+    },
+    "uplift": -0.0124,
+    "first": "2024-10-23",
+    "last": "2026-06-08"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_ml_follow_0.05",
+   "sport": "nba",
+   "family": "nba_ml",
+   "mode": "follow",
+   "param": 0.05,
+   "market": "ml",
+   "title": "不讓分勝率（去水）變動 ≥5pp，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 583,
+    "hit": 0.5952,
+    "roi": 0.0734,
+    "units": 42.82,
+    "avg_odds": 1.964,
+    "t": 1.7,
+    "p": 0.0447,
+    "max_drawdown": 14.59,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 322,
+      "roi": 0.0559,
+      "hit": 0.5776
+     },
+     "2025-26": {
+      "n": 261,
+      "roi": 0.095,
+      "hit": 0.6169
+     }
+    },
+    "uplift": 0.0471,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": true,
+   "weak": false
+  },
+  {
+   "sid": "nba_ml_fade_0.05",
+   "sport": "nba",
+   "family": "nba_ml",
+   "mode": "fade",
+   "param": 0.05,
+   "market": "ml",
+   "title": "不讓分勝率（去水）變動 ≥5pp，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 656,
+    "hit": 0.3643,
+    "roi": -0.1219,
+    "units": -79.99,
+    "avg_odds": 2.842,
+    "t": -2.38,
+    "p": 0.9914,
+    "max_drawdown": 88.87,
+    "max_losing_streak": 13,
+    "by_season": {
+     "2024-25": {
+      "n": 360,
+      "roi": -0.1294,
+      "hit": 0.375
+     },
+     "2025-26": {
+      "n": 296,
+      "roi": -0.1128,
+      "hit": 0.3514
+     }
+    },
+    "uplift": -0.0374,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_ml_follow_0.08",
+   "sport": "nba",
+   "family": "nba_ml",
+   "mode": "follow",
+   "param": 0.08,
+   "market": "ml",
+   "title": "不讓分勝率（去水）變動 ≥8pp，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 258,
+    "hit": 0.6124,
+    "roi": 0.0737,
+    "units": 19.02,
+    "avg_odds": 1.88,
+    "t": 1.2,
+    "p": 0.1157,
+    "max_drawdown": 11.95,
+    "max_losing_streak": 5,
+    "by_season": {
+     "2024-25": {
+      "n": 146,
+      "roi": 0.0762,
+      "hit": 0.6233
+     },
+     "2025-26": {
+      "n": 112,
+      "roi": 0.0705,
+      "hit": 0.5982
+     }
+    },
+    "uplift": 0.0513,
+    "first": "2024-10-23",
+    "last": "2026-05-23"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "nba_ml_fade_0.08",
+   "sport": "nba",
+   "family": "nba_ml",
+   "mode": "fade",
+   "param": 0.08,
+   "market": "ml",
+   "title": "不讓分勝率（去水）變動 ≥8pp，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 299,
+    "hit": 0.3579,
+    "roi": -0.1199,
+    "units": -35.84,
+    "avg_odds": 2.877,
+    "t": -1.56,
+    "p": 0.9409,
+    "max_drawdown": 42.89,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 168,
+      "roi": -0.1303,
+      "hit": 0.3512
+     },
+     "2025-26": {
+      "n": 131,
+      "roi": -0.1065,
+      "hit": 0.3664
+     }
+    },
+    "uplift": -0.0348,
+    "first": "2024-10-23",
+    "last": "2026-05-23"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_b2b_fade",
+   "sport": "nba",
+   "family": "nba_rest",
+   "mode": "fade",
+   "param": 1,
+   "market": "spread",
+   "title": "背靠背（昨天剛比賽）的球隊 vs 休息 ≥1 天的對手：買對手讓分",
+   "live_source": "espn",
+   "stats": {
+    "n": 609,
+    "hit": 0.5205,
+    "roi": -0.0077,
+    "units": -4.67,
+    "avg_odds": 1.908,
+    "t": -0.2,
+    "p": 0.5787,
+    "max_drawdown": 37.8,
+    "max_losing_streak": 5,
+    "by_season": {
+     "2024-25": {
+      "n": 308,
+      "roi": 0.0517,
+      "hit": 0.5519
+     },
+     "2025-26": {
+      "n": 301,
+      "roi": -0.0684,
+      "hit": 0.4884
+     }
+    },
+    "uplift": 0.0203,
+    "first": "2024-10-26",
+    "last": "2026-04-10"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_b2b_follow",
+   "sport": "nba",
+   "family": "nba_rest",
+   "mode": "follow",
+   "param": 1,
+   "market": "spread",
+   "title": "背靠背的球隊 vs 休息 ≥1 天的對手：買背靠背球隊讓分（市場可能過度扣分）",
+   "live_source": "espn",
+   "stats": {
+    "n": 609,
+    "hit": 0.4795,
+    "roi": -0.0851,
+    "units": -51.85,
+    "avg_odds": 1.91,
+    "t": -2.2,
+    "p": 0.9861,
+    "max_drawdown": 59.02,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 308,
+      "roi": -0.1449,
+      "hit": 0.4481
+     },
+     "2025-26": {
+      "n": 301,
+      "roi": -0.024,
+      "hit": 0.5116
+     }
+    },
+    "uplift": -0.0203,
+    "first": "2024-10-26",
+    "last": "2026-04-10"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_dog_low_6.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "dog_low",
+   "param": 6.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥6 分的比賽，大小分比近期平均低 ≥4 分（慢節奏）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 421,
+    "hit": 0.4941,
+    "roi": -0.0598,
+    "units": -25.16,
+    "avg_odds": 1.907,
+    "t": -1.29,
+    "p": 0.9009,
+    "max_drawdown": 28.5,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 202,
+      "roi": -0.0752,
+      "hit": 0.4851
+     },
+     "2025-26": {
+      "n": 219,
+      "roi": -0.0455,
+      "hit": 0.5023
+     }
+    },
+    "uplift": -0.0065,
+    "first": "2024-10-30",
+    "last": "2026-06-05"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_fav_low_6.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "fav_low",
+   "param": 6.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥6 分的比賽，大小分比近期平均低 ≥4 分 → 買讓分方",
+   "live_source": "espn",
+   "stats": {
+    "n": 421,
+    "hit": 0.5059,
+    "roi": -0.0351,
+    "units": -14.78,
+    "avg_odds": 1.911,
+    "t": -0.75,
+    "p": 0.7746,
+    "max_drawdown": 25.67,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 202,
+      "roi": -0.0163,
+      "hit": 0.5149
+     },
+     "2025-26": {
+      "n": 219,
+      "roi": -0.0525,
+      "hit": 0.4977
+     }
+    },
+    "uplift": 0.0065,
+    "first": "2024-10-30",
+    "last": "2026-06-05"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_dog_high_6.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "dog_high",
+   "param": 6.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥6 分的比賽，大小分比近期平均高 ≥4 分（快節奏）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 452,
+    "hit": 0.4956,
+    "roi": -0.0572,
+    "units": -25.87,
+    "avg_odds": 1.905,
+    "t": -1.28,
+    "p": 0.8993,
+    "max_drawdown": 30.42,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 224,
+      "roi": -0.0806,
+      "hit": 0.4821
+     },
+     "2025-26": {
+      "n": 228,
+      "roi": -0.0343,
+      "hit": 0.5088
+     }
+    },
+    "uplift": -0.0056,
+    "first": "2024-10-28",
+    "last": "2026-04-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_fav_high_6.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "fav_high",
+   "param": 6.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥6 分的比賽，大小分比近期平均高 ≥4 分 → 買讓分方",
+   "live_source": "espn",
+   "stats": {
+    "n": 452,
+    "hit": 0.5044,
+    "roi": -0.0354,
+    "units": -16.0,
+    "avg_odds": 1.914,
+    "t": -0.79,
+    "p": 0.784,
+    "max_drawdown": 29.81,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 224,
+      "roi": -0.0075,
+      "hit": 0.5179
+     },
+     "2025-26": {
+      "n": 228,
+      "roi": -0.0628,
+      "hit": 0.4912
+     }
+    },
+    "uplift": 0.0056,
+    "first": "2024-10-28",
+    "last": "2026-04-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_dog_low_9.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "dog_low",
+   "param": 9.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥9 分的比賽，大小分比近期平均低 ≥4 分（慢節奏）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 224,
+    "hit": 0.4866,
+    "roi": -0.0748,
+    "units": -16.75,
+    "avg_odds": 1.905,
+    "t": -1.17,
+    "p": 0.8799,
+    "max_drawdown": 20.96,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024-25": {
+      "n": 100,
+      "roi": -0.1229,
+      "hit": 0.46
+     },
+     "2025-26": {
+      "n": 124,
+      "roi": -0.036,
+      "hit": 0.5081
+     }
+    },
+    "uplift": -0.0144,
+    "first": "2024-10-30",
+    "last": "2026-05-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_fav_low_9.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "fav_low",
+   "param": 9.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥9 分的比賽，大小分比近期平均低 ≥4 分 → 買讓分方",
+   "live_source": "espn",
+   "stats": {
+    "n": 224,
+    "hit": 0.5134,
+    "roi": -0.0199,
+    "units": -4.45,
+    "avg_odds": 1.912,
+    "t": -0.31,
+    "p": 0.622,
+    "max_drawdown": 13.54,
+    "max_losing_streak": 6,
+    "by_season": {
+     "2024-25": {
+      "n": 100,
+      "roi": 0.0343,
+      "hit": 0.54
+     },
+     "2025-26": {
+      "n": 124,
+      "roi": -0.0635,
+      "hit": 0.4919
+     }
+    },
+    "uplift": 0.0144,
+    "first": "2024-10-30",
+    "last": "2026-05-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_dog_high_9.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "dog_high",
+   "param": 9.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥9 分的比賽，大小分比近期平均高 ≥4 分（快節奏）→ 買受讓方",
+   "live_source": "espn",
+   "stats": {
+    "n": 266,
+    "hit": 0.4887,
+    "roi": -0.0697,
+    "units": -18.55,
+    "avg_odds": 1.908,
+    "t": -1.19,
+    "p": 0.8835,
+    "max_drawdown": 25.34,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 134,
+      "roi": -0.1331,
+      "hit": 0.4552
+     },
+     "2025-26": {
+      "n": 132,
+      "roi": -0.0054,
+      "hit": 0.5227
+     }
+    },
+    "uplift": -0.0116,
+    "first": "2024-10-28",
+    "last": "2026-04-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_cross_fav_high_9.0",
+   "sport": "nba",
+   "family": "nba_cross",
+   "mode": "fav_high",
+   "param": 9.0,
+   "market": "spread",
+   "title": "[交叉] 讓分 ≥9 分的比賽，大小分比近期平均高 ≥4 分 → 買讓分方",
+   "live_source": "espn",
+   "stats": {
+    "n": 266,
+    "hit": 0.5113,
+    "roi": -0.0247,
+    "units": -6.56,
+    "avg_odds": 1.91,
+    "t": -0.42,
+    "p": 0.663,
+    "max_drawdown": 19.76,
+    "max_losing_streak": 5,
+    "by_season": {
+     "2024-25": {
+      "n": 134,
+      "roi": 0.0401,
+      "hit": 0.5448
+     },
+     "2025-26": {
+      "n": 132,
+      "roi": -0.0903,
+      "hit": 0.4773
+     }
+    },
+    "uplift": 0.0116,
+    "first": "2024-10-28",
+    "last": "2026-04-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_crossou_big_over",
+   "sport": "nba",
+   "family": "nba_crossou",
+   "mode": "big_over",
+   "param": 0,
+   "market": "total",
+   "title": "[交叉] 讓分 ≥10 分（實力懸殊）→ 買大分",
+   "live_source": "espn",
+   "stats": {
+    "n": 635,
+    "hit": 0.5055,
+    "roi": -0.0365,
+    "units": -23.19,
+    "avg_odds": 1.907,
+    "t": -0.96,
+    "p": 0.8327,
+    "max_drawdown": 38.32,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 298,
+      "roi": -0.053,
+      "hit": 0.4966
+     },
+     "2025-26": {
+      "n": 337,
+      "roi": -0.022,
+      "hit": 0.5134
+     }
+    },
+    "uplift": 0.0053,
+    "first": "2024-10-24",
+    "last": "2026-05-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_crossou_big_under",
+   "sport": "nba",
+   "family": "nba_crossou",
+   "mode": "big_under",
+   "param": 0,
+   "market": "total",
+   "title": "[交叉] 讓分 ≥10 分（垃圾時間）→ 買小分",
+   "live_source": "espn",
+   "stats": {
+    "n": 635,
+    "hit": 0.4945,
+    "roi": -0.0569,
+    "units": -36.16,
+    "avg_odds": 1.909,
+    "t": -1.5,
+    "p": 0.9336,
+    "max_drawdown": 58.11,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 298,
+      "roi": -0.0371,
+      "hit": 0.5034
+     },
+     "2025-26": {
+      "n": 337,
+      "roi": -0.0745,
+      "hit": 0.4866
+     }
+    },
+    "uplift": -0.0053,
+    "first": "2024-10-24",
+    "last": "2026-05-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_crossou_close_over",
+   "sport": "nba",
+   "family": "nba_crossou",
+   "mode": "close_over",
+   "param": 0,
+   "market": "total",
+   "title": "[交叉] 讓分 ≤3 分（勢均力敵）→ 買大分",
+   "live_source": "espn",
+   "stats": {
+    "n": 525,
+    "hit": 0.4762,
+    "roi": -0.0929,
+    "units": -48.78,
+    "avg_odds": 1.906,
+    "t": -2.23,
+    "p": 0.9873,
+    "max_drawdown": 61.12,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 256,
+      "roi": -0.0325,
+      "hit": 0.5078
+     },
+     "2025-26": {
+      "n": 269,
+      "roi": -0.1504,
+      "hit": 0.4461
+     }
+    },
+    "uplift": -0.0244,
+    "first": "2024-10-22",
+    "last": "2026-06-10"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_crossou_close_under",
+   "sport": "nba",
+   "family": "nba_crossou",
+   "mode": "close_under",
+   "param": 0,
+   "market": "total",
+   "title": "[交叉] 讓分 ≤3 分（勢均力敵）→ 買小分",
+   "live_source": "espn",
+   "stats": {
+    "n": 525,
+    "hit": 0.5238,
+    "roi": -0.0002,
+    "units": -0.08,
+    "avg_odds": 1.91,
+    "t": -0.0,
+    "p": 0.5015,
+    "max_drawdown": 25.99,
+    "max_losing_streak": 14,
+    "by_season": {
+     "2024-25": {
+      "n": 256,
+      "roi": -0.0573,
+      "hit": 0.4922
+     },
+     "2025-26": {
+      "n": 269,
+      "roi": 0.0542,
+      "hit": 0.5539
+     }
+    },
+    "uplift": 0.0244,
+    "first": "2024-10-22",
+    "last": "2026-06-10"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_mx_sp_tot_up",
+   "sport": "nba",
+   "family": "nba_mx_sp",
+   "mode": "tot_up",
+   "param": 2.0,
+   "market": "spread",
+   "title": "[交叉] 讓分盤移動 ≥2 分，且大小分同時上升 ≥2 分 → 跟進讓分",
+   "live_source": "espn",
+   "stats": {
+    "n": 345,
+    "hit": 0.5072,
+    "roi": -0.0261,
+    "units": -9.01,
+    "avg_odds": 1.918,
+    "t": -0.5,
+    "p": 0.693,
+    "max_drawdown": 28.15,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024-25": {
+      "n": 183,
+      "roi": -0.1081,
+      "hit": 0.4645
+     },
+     "2025-26": {
+      "n": 162,
+      "roi": 0.0665,
+      "hit": 0.5556
+     }
+    },
+    "uplift": 0.0095,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "nba_mx_sp_tot_down",
+   "sport": "nba",
+   "family": "nba_mx_sp",
+   "mode": "tot_down",
+   "param": 2.0,
+   "market": "spread",
+   "title": "[交叉] 讓分盤移動 ≥2 分，且大小分同時下降 ≥2 分 → 跟進讓分",
+   "live_source": "espn",
+   "stats": {
+    "n": 358,
+    "hit": 0.5251,
+    "roi": 0.0023,
+    "units": 0.83,
+    "avg_odds": 1.913,
+    "t": 0.05,
+    "p": 0.4817,
+    "max_drawdown": 17.58,
+    "max_losing_streak": 7,
+    "by_season": {
+     "2024-25": {
+      "n": 215,
+      "roi": -0.0153,
+      "hit": 0.5163
+     },
+     "2025-26": {
+      "n": 143,
+      "roi": 0.0288,
+      "hit": 0.5385
+     }
+    },
+    "uplift": 0.0262,
+    "first": "2024-10-23",
+    "last": "2026-05-02"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "nba_mx_sp_tot_flat",
+   "sport": "nba",
+   "family": "nba_mx_sp",
+   "mode": "tot_flat",
+   "param": 2.0,
+   "market": "spread",
+   "title": "[交叉] 讓分盤移動 ≥2 分，但大小分幾乎沒動 → 跟進讓分",
+   "live_source": "espn",
+   "stats": {
+    "n": 309,
+    "hit": 0.5696,
+    "roi": 0.0918,
+    "units": 28.35,
+    "avg_odds": 1.917,
+    "t": 1.7,
+    "p": 0.045,
+    "max_drawdown": 15.79,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 154,
+      "roi": 0.1,
+      "hit": 0.5714
+     },
+     "2025-26": {
+      "n": 155,
+      "roi": 0.0836,
+      "hit": 0.5677
+     }
+    },
+    "uplift": 0.0716,
+    "first": "2024-10-23",
+    "last": "2026-05-26"
+   },
+   "enabled": true,
+   "weak": false
+  },
+  {
+   "sid": "nba_mx_tot_sp_moved",
+   "sport": "nba",
+   "family": "nba_mx_tot",
+   "mode": "sp_moved",
+   "param": 3.0,
+   "market": "total",
+   "title": "[交叉] 大小分移動 ≥3 分，且讓分也移動 ≥2 分 → 跟進大小",
+   "live_source": "espn",
+   "stats": {
+    "n": 536,
+    "hit": 0.5354,
+    "roi": 0.022,
+    "units": 11.79,
+    "avg_odds": 1.911,
+    "t": 0.53,
+    "p": 0.2966,
+    "max_drawdown": 17.32,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024-25": {
+      "n": 317,
+      "roi": 0.0426,
+      "hit": 0.5457
+     },
+     "2025-26": {
+      "n": 219,
+      "roi": -0.0079,
+      "hit": 0.5205
+     }
+    },
+    "uplift": 0.0363,
+    "first": "2024-10-23",
+    "last": "2026-05-25"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "nba_mx_tot_sp_flat",
+   "sport": "nba",
+   "family": "nba_mx_tot",
+   "mode": "sp_flat",
+   "param": 3.0,
+   "market": "total",
+   "title": "[交叉] 大小分移動 ≥3 分，但讓分沒動 → 跟進大小",
+   "live_source": "espn",
+   "stats": {
+    "n": 696,
+    "hit": 0.5172,
+    "roi": -0.0121,
+    "units": -8.42,
+    "avg_odds": 1.912,
+    "t": -0.33,
+    "p": 0.6308,
+    "max_drawdown": 27.83,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024-25": {
+      "n": 356,
+      "roi": 0.0144,
+      "hit": 0.5309
+     },
+     "2025-26": {
+      "n": 340,
+      "roi": -0.0399,
+      "hit": 0.5029
+     }
+    },
+    "uplift": 0.0182,
+    "first": "2024-10-23",
+    "last": "2026-06-05"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_ml_follow_0.03",
+   "sport": "mlb",
+   "family": "mlb_ml",
+   "mode": "follow",
+   "param": 0.03,
+   "market": "ml",
+   "title": "MLB 不讓分勝率（去水）開盤→收盤變動 ≥3pp，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 2311,
+    "hit": 0.5461,
+    "roi": -0.0484,
+    "units": -111.81,
+    "avg_odds": 1.789,
+    "t": -2.62,
+    "p": 0.9956,
+    "max_drawdown": 124.27,
+    "max_losing_streak": 10,
+    "by_season": {
+     "2024": {
+      "n": 692,
+      "roi": -0.0591,
+      "hit": 0.5347
+     },
+     "2025": {
+      "n": 1083,
+      "roi": -0.0462,
+      "hit": 0.5512
+     },
+     "2026": {
+      "n": 536,
+      "roi": -0.0389,
+      "hit": 0.5504
+     }
+    },
+    "uplift": -0.0022,
+    "first": "2024-03-20",
+    "last": "2026-10-07"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_ml_fade_0.03",
+   "sport": "mlb",
+   "family": "mlb_ml",
+   "mode": "fade",
+   "param": 0.03,
+   "market": "ml",
+   "title": "MLB 不讓分勝率變動 ≥3pp，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 2311,
+    "hit": 0.4539,
+    "roi": -0.039,
+    "units": -90.24,
+    "avg_odds": 2.2,
+    "t": -1.72,
+    "p": 0.9575,
+    "max_drawdown": 102.98,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024": {
+      "n": 692,
+      "roi": -0.0432,
+      "hit": 0.4653
+     },
+     "2025": {
+      "n": 1083,
+      "roi": -0.0389,
+      "hit": 0.4488
+     },
+     "2026": {
+      "n": 536,
+      "roi": -0.034,
+      "hit": 0.4496
+     }
+    },
+    "uplift": 0.0022,
+    "first": "2024-03-20",
+    "last": "2026-10-07"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_ml_follow_0.05",
+   "sport": "mlb",
+   "family": "mlb_ml",
+   "mode": "follow",
+   "param": 0.05,
+   "market": "ml",
+   "title": "MLB 不讓分勝率（去水）開盤→收盤變動 ≥5pp，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 847,
+    "hit": 0.5939,
+    "roi": 0.0055,
+    "units": 4.66,
+    "avg_odds": 1.72,
+    "t": 0.19,
+    "p": 0.4254,
+    "max_drawdown": 21.87,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024": {
+      "n": 173,
+      "roi": -0.0478,
+      "hit": 0.5434
+     },
+     "2025": {
+      "n": 529,
+      "roi": -0.0058,
+      "hit": 0.5936
+     },
+     "2026": {
+      "n": 145,
+      "roi": 0.1103,
+      "hit": 0.6552
+     }
+    },
+    "uplift": 0.0258,
+    "first": "2024-03-21",
+    "last": "2026-10-04"
+   },
+   "enabled": false,
+   "weak": true
+  },
+  {
+   "sid": "mlb_ml_fade_0.05",
+   "sport": "mlb",
+   "family": "mlb_ml",
+   "mode": "fade",
+   "param": 0.05,
+   "market": "ml",
+   "title": "MLB 不讓分勝率變動 ≥5pp，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 847,
+    "hit": 0.4061,
+    "roi": -0.0953,
+    "units": -80.76,
+    "avg_odds": 2.297,
+    "t": -2.46,
+    "p": 0.9931,
+    "max_drawdown": 91.22,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024": {
+      "n": 173,
+      "roi": -0.016,
+      "hit": 0.4566
+     },
+     "2025": {
+      "n": 529,
+      "roi": -0.0892,
+      "hit": 0.4064
+     },
+     "2026": {
+      "n": 145,
+      "roi": -0.2126,
+      "hit": 0.3448
+     }
+    },
+    "uplift": -0.0258,
+    "first": "2024-03-21",
+    "last": "2026-10-04"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_ml_follow_0.08",
+   "sport": "mlb",
+   "family": "mlb_ml",
+   "mode": "follow",
+   "param": 0.08,
+   "market": "ml",
+   "title": "MLB 不讓分勝率（去水）開盤→收盤變動 ≥8pp，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 224,
+    "hit": 0.6205,
+    "roi": -0.002,
+    "units": -0.45,
+    "avg_odds": 1.623,
+    "t": -0.04,
+    "p": 0.5151,
+    "max_drawdown": 14.9,
+    "max_losing_streak": 4,
+    "by_season": {
+     "2024": {
+      "n": 26,
+      "roi": 0.0935,
+      "hit": 0.6538
+     },
+     "2025": {
+      "n": 181,
+      "roi": -0.0384,
+      "hit": 0.6022
+     },
+     "2026": {
+      "n": 17,
+      "roi": 0.2388,
+      "hit": 0.7647
+     }
+    },
+    "uplift": 0.0214,
+    "first": "2024-04-01",
+    "last": "2026-09-27"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_ml_fade_0.08",
+   "sport": "mlb",
+   "family": "mlb_ml",
+   "mode": "fade",
+   "param": 0.08,
+   "market": "ml",
+   "title": "MLB 不讓分勝率變動 ≥8pp，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 224,
+    "hit": 0.3795,
+    "roi": -0.09,
+    "units": -20.16,
+    "avg_odds": 2.474,
+    "t": -1.13,
+    "p": 0.8706,
+    "max_drawdown": 25.61,
+    "max_losing_streak": 12,
+    "by_season": {
+     "2024": {
+      "n": 26,
+      "roi": -0.2027,
+      "hit": 0.3462
+     },
+     "2025": {
+      "n": 181,
+      "roi": -0.0461,
+      "hit": 0.3978
+     },
+     "2026": {
+      "n": 17,
+      "roi": -0.3847,
+      "hit": 0.2353
+     }
+    },
+    "uplift": -0.0214,
+    "first": "2024-04-01",
+    "last": "2026-09-27"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_total_follow_0.5",
+   "sport": "mlb",
+   "family": "mlb_total",
+   "mode": "follow",
+   "param": 0.5,
+   "market": "total",
+   "title": "MLB 大小分盤口移動 ≥0.5 分，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 3461,
+    "hit": 0.4943,
+    "roi": -0.0418,
+    "units": -144.55,
+    "avg_odds": 1.942,
+    "t": -2.56,
+    "p": 0.9947,
+    "max_drawdown": 175.61,
+    "max_losing_streak": 12,
+    "by_season": {
+     "2024": {
+      "n": 578,
+      "roi": 0.0169,
+      "hit": 0.5156
+     },
+     "2025": {
+      "n": 1497,
+      "roi": -0.0396,
+      "hit": 0.495
+     },
+     "2026": {
+      "n": 1386,
+      "roi": -0.0686,
+      "hit": 0.4603
+     }
+    },
+    "uplift": 0.0011,
+    "first": "2024-03-28",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_total_fade_0.5",
+   "sport": "mlb",
+   "family": "mlb_total",
+   "mode": "fade",
+   "param": 0.5,
+   "market": "total",
+   "title": "MLB 大小分盤口移動 ≥0.5 分，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 3461,
+    "hit": 0.5057,
+    "roi": -0.0462,
+    "units": -159.85,
+    "avg_odds": 1.888,
+    "t": -2.91,
+    "p": 0.9982,
+    "max_drawdown": 171.54,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024": {
+      "n": 578,
+      "roi": -0.1035,
+      "hit": 0.4706
+     },
+     "2025": {
+      "n": 1497,
+      "roi": -0.0481,
+      "hit": 0.505
+     },
+     "2026": {
+      "n": 1386,
+      "roi": -0.0203,
+      "hit": 0.4964
+     }
+    },
+    "uplift": -0.0011,
+    "first": "2024-03-28",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_total_follow_1.0",
+   "sport": "mlb",
+   "family": "mlb_total",
+   "mode": "follow",
+   "param": 1.0,
+   "market": "total",
+   "title": "MLB 大小分盤口移動 ≥1 分，跟進",
+   "live_source": "espn",
+   "stats": {
+    "n": 2174,
+    "hit": 0.4935,
+    "roi": -0.0413,
+    "units": -89.73,
+    "avg_odds": 1.95,
+    "t": -1.98,
+    "p": 0.9762,
+    "max_drawdown": 120.53,
+    "max_losing_streak": 12,
+    "by_season": {
+     "2024": {
+      "n": 430,
+      "roi": 0.0179,
+      "hit": 0.5209
+     },
+     "2025": {
+      "n": 1497,
+      "roi": -0.0396,
+      "hit": 0.495
+     },
+     "2026": {
+      "n": 247,
+      "roi": -0.1545,
+      "hit": 0.417
+     }
+    },
+    "uplift": 0.0016,
+    "first": "2024-03-30",
+    "last": "2026-10-03"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_total_fade_1.0",
+   "sport": "mlb",
+   "family": "mlb_total",
+   "mode": "fade",
+   "param": 1.0,
+   "market": "total",
+   "title": "MLB 大小分盤口移動 ≥1 分，反向",
+   "live_source": "espn",
+   "stats": {
+    "n": 2174,
+    "hit": 0.5065,
+    "roi": -0.0475,
+    "units": -103.27,
+    "avg_odds": 1.888,
+    "t": -2.35,
+    "p": 0.9907,
+    "max_drawdown": 126.84,
+    "max_losing_streak": 9,
+    "by_season": {
+     "2024": {
+      "n": 430,
+      "roi": -0.1071,
+      "hit": 0.4791
+     },
+     "2025": {
+      "n": 1497,
+      "roi": -0.0481,
+      "hit": 0.505
+     },
+     "2026": {
+      "n": 247,
+      "roi": 0.0596,
+      "hit": 0.5425
+     }
+    },
+    "uplift": -0.0016,
+    "first": "2024-03-30",
+    "last": "2026-10-03"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_mx_tot_flat",
+   "sport": "mlb",
+   "family": "mlb_mx",
+   "mode": "tot_flat",
+   "param": 0.04,
+   "market": "ml",
+   "title": "[交叉] MLB 不讓分勝率變動 ≥4pp、但大小分沒動 → 跟進不讓分",
+   "live_source": "espn",
+   "stats": {
+    "n": 692,
+    "hit": 0.539,
+    "roi": -0.0739,
+    "units": -51.15,
+    "avg_odds": 1.761,
+    "t": -2.22,
+    "p": 0.9868,
+    "max_drawdown": 55.19,
+    "max_losing_streak": 6,
+    "by_season": {
+     "2024": {
+      "n": 270,
+      "roi": -0.0263,
+      "hit": 0.5556
+     },
+     "2025": {
+      "n": 313,
+      "roi": -0.1158,
+      "hit": 0.524
+     },
+     "2026": {
+      "n": 109,
+      "roi": -0.0716,
+      "hit": 0.5413
+     }
+    },
+    "uplift": -0.0176,
+    "first": "2024-03-21",
+    "last": "2026-09-27"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_mx_tot_moved",
+   "sport": "mlb",
+   "family": "mlb_mx",
+   "mode": "tot_moved",
+   "param": 0.04,
+   "market": "ml",
+   "title": "[交叉] MLB 不讓分勝率變動 ≥4pp、大小分也動了 → 跟進不讓分",
+   "live_source": "espn",
+   "stats": {
+    "n": 715,
+    "hit": 0.579,
+    "roi": -0.0104,
+    "units": -7.43,
+    "avg_odds": 1.746,
+    "t": -0.32,
+    "p": 0.6258,
+    "max_drawdown": 34.33,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024": {
+      "n": 79,
+      "roi": -0.1182,
+      "hit": 0.5316
+     },
+     "2025": {
+      "n": 463,
+      "roi": -0.0219,
+      "hit": 0.5724
+     },
+     "2026": {
+      "n": 173,
+      "roi": 0.0697,
+      "hit": 0.6185
+     }
+    },
+    "uplift": 0.0185,
+    "first": "2024-03-28",
+    "last": "2026-10-04"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_rlx_fav_high",
+   "sport": "mlb",
+   "family": "mlb_rlx",
+   "mode": "fav_high",
+   "param": 0.58,
+   "market": "spread",
+   "title": "[交叉] MLB 熱門勝率 ≥58% 的比賽，大小 ≥9 分（打擊戰）→ 買熱門 -1.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 707,
+    "hit": 0.4809,
+    "roi": -0.0504,
+    "units": -35.6,
+    "avg_odds": 2.003,
+    "t": -1.34,
+    "p": 0.9104,
+    "max_drawdown": 48.98,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024": {
+      "n": 191,
+      "roi": -0.1136,
+      "hit": 0.4503
+     },
+     "2025": {
+      "n": 243,
+      "roi": -0.0329,
+      "hit": 0.4897
+     },
+     "2026": {
+      "n": 273,
+      "roi": -0.0216,
+      "hit": 0.4945
+     }
+    },
+    "uplift": -0.0006,
+    "first": "2024-03-28",
+    "last": "2026-09-27"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_rlx_dog_high",
+   "sport": "mlb",
+   "family": "mlb_rlx",
+   "mode": "dog_high",
+   "param": 0.58,
+   "market": "spread",
+   "title": "[交叉] MLB 熱門勝率 ≥58% 的比賽，大小 ≥9 分 → 買冷門 +1.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 707,
+    "hit": 0.5191,
+    "roi": -0.0483,
+    "units": -34.12,
+    "avg_odds": 1.858,
+    "t": -1.39,
+    "p": 0.9177,
+    "max_drawdown": 40.3,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024": {
+      "n": 191,
+      "roi": 0.0111,
+      "hit": 0.5497
+     },
+     "2025": {
+      "n": 243,
+      "roi": -0.0645,
+      "hit": 0.5103
+     },
+     "2026": {
+      "n": 273,
+      "roi": -0.0754,
+      "hit": 0.5055
+     }
+    },
+    "uplift": 0.0006,
+    "first": "2024-03-28",
+    "last": "2026-09-27"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_rlx_fav_low",
+   "sport": "mlb",
+   "family": "mlb_rlx",
+   "mode": "fav_low",
+   "param": 0.58,
+   "market": "spread",
+   "title": "[交叉] MLB 熱門勝率 ≥58% 的比賽，大小 ≤7.5 分（投手戰）→ 買熱門 -1.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 922,
+    "hit": 0.4403,
+    "roi": -0.0747,
+    "units": -68.85,
+    "avg_odds": 2.128,
+    "t": -2.15,
+    "p": 0.9844,
+    "max_drawdown": 78.81,
+    "max_losing_streak": 11,
+    "by_season": {
+     "2024": {
+      "n": 324,
+      "roi": -0.0296,
+      "hit": 0.463
+     },
+     "2025": {
+      "n": 337,
+      "roi": -0.0932,
+      "hit": 0.4362
+     },
+     "2026": {
+      "n": 261,
+      "roi": -0.1067,
+      "hit": 0.4176
+     }
+    },
+    "uplift": -0.014,
+    "first": "2024-03-28",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  },
+  {
+   "sid": "mlb_rlx_dog_low",
+   "sport": "mlb",
+   "family": "mlb_rlx",
+   "mode": "dog_low",
+   "param": 0.58,
+   "market": "spread",
+   "title": "[交叉] MLB 熱門勝率 ≥58% 的比賽，大小 ≤7.5 分（投手戰）→ 買冷門 +1.5",
+   "live_source": "espn",
+   "stats": {
+    "n": 922,
+    "hit": 0.5597,
+    "roi": -0.0177,
+    "units": -16.36,
+    "avg_odds": 1.769,
+    "t": -0.61,
+    "p": 0.7293,
+    "max_drawdown": 41.91,
+    "max_losing_streak": 8,
+    "by_season": {
+     "2024": {
+      "n": 324,
+      "roi": -0.0342,
+      "hit": 0.537
+     },
+     "2025": {
+      "n": 337,
+      "roi": -0.0204,
+      "hit": 0.5638
+     },
+     "2026": {
+      "n": 261,
+      "roi": 0.006,
+      "hit": 0.5824
+     }
+    },
+    "uplift": 0.014,
+    "first": "2024-03-28",
+    "last": "2026-10-12"
+   },
+   "enabled": false,
+   "weak": false
+  }
+ ]
+}

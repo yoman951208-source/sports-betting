@@ -12,6 +12,7 @@
   python main.py league 歐冠 [--hours 36]  分析整個聯賽／盃賽的比賽並發到 Telegram
   python main.py analyze 曼城           分析指定球隊的下一場比賽
   python main.py parlay 歐冠            串關建議（二串一、三串一）；全部 = 所有足球
+  python main.py best                  🏆 今日最推薦（單關、二串一、三串一）
   python main.py test-notify           發一則 Telegram 測試訊息
   python main.py loop                  完整本機常駐模式（不用雲端時）
   python main.py cloud                 雲端執行一次（GitHub Actions 每 30 分鐘呼叫）
@@ -73,13 +74,17 @@ def send_daily_parlays(dry_run: bool) -> None:
     """每日串關：未來 24 小時全部（足球 + MLB + NBA），存進資料庫供賽後自動結算。"""
     import live
     import parlay
+    import picks
+    games = live.fetch_games()
     conn = db(dry_run)
     try:
-        head, *blocks = parlay.report(live.fetch_games(), None, 24, save_conn=conn)
+        best = picks.report(games, 24, save_conn=conn)              # 🏆 最推薦（先發、存檔追蹤戰績）
+        head, *blocks = parlay.report(games, None, 24, save_conn=conn)
         record = parlay.record_lines(conn, 30)[0]
     finally:
         conn.close()
-    send_telegram(head + f"\n\n📒 近 30 天串關實戰：{record}", dry_run=dry_run)
+    send_blocks(best, dry_run=dry_run)
+    send_telegram("📚 <b>更多串關選擇</b>\n" + head + f"\n\n📒 近 30 天串關實戰：{record}", dry_run=dry_run)
     send_blocks(blocks, dry_run=dry_run)
 
 
@@ -239,7 +244,7 @@ def loop() -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description="運彩分析機器人（足球 + NBA）")
     ap.add_argument("command", choices=["backtest", "run", "digest", "report", "oddsapi", "strategies", "test-notify", "loop",
-                                        "analyze", "league", "review", "parlay", "cloud", "bot", "sync"])
+                                        "analyze", "league", "review", "parlay", "cloud", "bot", "sync", "best"])
     ap.add_argument("query", nargs="?", default="", help="analyze：隊名；league：聯賽名稱（如 歐冠）")
     ap.add_argument("--hours", type=float, default=36, help="league：分析未來幾小時的比賽")
     ap.add_argument("--send", action="store_true", help="backtest：把報告發到 Telegram")
@@ -266,6 +271,10 @@ def main() -> int:
         import live
         if a.command == "run":
             live.run_cycle(dry_run=a.dry_run)
+            return 0
+        if a.command == "best":
+            import picks
+            send_blocks(picks.report(live.fetch_games(), a.hours if a.hours != 36 else 24), dry_run=a.dry_run)
             return 0
         if a.command == "parlay":
             import parlay

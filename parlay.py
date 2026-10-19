@@ -151,14 +151,19 @@ def settle_parlays(conn) -> int:
     return done
 
 
-def record_lines(conn, days: int | None = None) -> list[str]:
-    """串關實戰紀錄（以 DK 賠率、每張 1 注）。"""
+def record_lines(conn, days: int | None = None, label_prefix: str | None = None) -> list[str]:
+    """串關實戰紀錄（以 DK 賠率、每張 1 注）。label_prefix 只看某一類（例如「最推薦｜單關」）。"""
     from core import now_utc
     conn.executescript(PARLAY_SCHEMA)
     since = (now_utc() - timedelta(days=days)).isoformat() if days else "0"
-    rows = conn.execute("SELECT * FROM parlays WHERE result IN ('W','L','P') AND created >= ?", (since,)).fetchall()
+    q = "SELECT * FROM parlays WHERE result IN ('W','L','P') AND created >= ?"
+    args: tuple = (since,)
+    if label_prefix:
+        q += " AND label LIKE ?"
+        args += (label_prefix + "%",)
+    rows = conn.execute(q, args).fetchall()
     if not rows:
-        return ["（尚無已結算的串關）"]
+        return ["（尚無已結算的紀錄）"]
     w = sum(r["result"] == "W" for r in rows)
     units = sum(r["profit"] for r in rows)
     exp = sum(r["p"] for r in rows)

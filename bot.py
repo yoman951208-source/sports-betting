@@ -30,6 +30,7 @@ HELP = """🤖 <b>運彩分析機器人 指令</b>
 /nba　NBA 未來 24 小時
 MLB（或 棒球、季後賽）　MLB 未來 48 小時，含先發投手、系列賽、傷兵
 /today　每日總覽
+<b>推薦</b>（或 最推薦、/best）　🏆 掃描所有比賽，給出最推薦的單關、二串一、三串一（附評等、理由、運彩門檻）
 串關　未來 24 小時的二串一、三串一建議（預設歐冠；可加聯賽，例：串關 英超、串關 全部）
 /review 或 賽後　過去 24 小時完賽比賽的賽後檢討（賽前預測 vs 實際）
 /report　實戰成績
@@ -63,6 +64,11 @@ def handle(text: str) -> None:
             live.daily_digest(conn, live.fetch_games(), live.load_strategies()[0], False)
         finally:
             conn.close()
+        return
+    if cmd in ("best", "推薦", "最推薦", "今日推薦", "建議"):
+        import picks
+        send_telegram("🔍 掃描所有比賽中…")
+        send_blocks(picks.report(live.fetch_games(), float(arg) if arg.replace(".", "", 1).isdigit() else 24))
         return
     if cmd in ("parlay", "串關", "串"):
         import parlay

@@ -167,7 +167,7 @@ def us_sports_blocks(conn, hours: float) -> list[str]:
     """MLB / NBA：用 predictions 表（開賽前最後一次記錄的模型預測）對照賽果。"""
     since = (now_utc() - timedelta(hours=hours + 4)).isoformat()
     games = conn.execute("""SELECT DISTINCT p.game_id, g.* FROM predictions p JOIN games g ON g.game_id = p.game_id
-                            WHERE p.sport IN ('mlb','nba') AND g.status='final' AND g.kickoff >= ?
+                            WHERE p.sport = 'mlb' AND g.status='final' AND g.kickoff >= ?
                             ORDER BY g.kickoff""", (since,)).fetchall()
     blocks = []
     for g in games:
@@ -189,6 +189,114 @@ def us_sports_blocks(conn, hours: float) -> list[str]:
                      f"{_mark(best['profit'] or 0)} {best['profit'] or 0:+.2f} 注")
         blocks.append("\n".join(lines))
     return blocks
+
+
+def _nba_player_line(rows: list[dict], team: str) -> tuple[str, list[str]]:
+    """某隊的得分王（前 3 位）與缺陣者。回傳（得分文字, 缺陣文字列表）。"""
+    mine = [r for r in rows if r["team"] == team]
+    played = sorted([r for r in mine if not r["dnp"] and (r.get("min") or 0) > 0], key=lambda r: -(r.get("pts") or 0))
+    top = "、".join(f"{r['name'].split()[-1]} {int(r['pts'] or 0)}分{int(r['reb'] or 0)}板{int(r['ast'] or 0)}助/{int(r['min'] or 0)}分鐘"
+                   for r in played[:3])
+    out = [f"{r['name']}（{r['reason'].title() or '未上場'}）" for r in mine
+           if r["dnp"] and r.get("reason") and any(k in r["reason"].upper() for k in ("INJURY", "ILLNESS", "REST", "OUT", "PERSONAL"))]
+    return top, out[:4]
+
+
+def nba_blocks(conn, hours: float) -> tuple[str | None, list[str]]:
+    """NBA 盤後分析：盤口表現（讓分 / 大小 / 不讓分 / 資金方向）、球員表現與缺陣、模型預測對照。"""
+    import data_nba_box
+    since = (now_utc() - timedelta(hours=hours + 4)).isoformat()
+    games = conn.execute("""SELECT * FROM games WHERE sport='nba' AND status='final' AND kickoff >= ?
+                            ORDER BY kickoff""", (since,)).fetchall()
+    rows = []
+    for g in games:
+        odds, _ts = _prematch_odds(conn, g["game_id"], parse_iso(g["kickoff"]))
+        if not odds or odds.get("c_spread_home") is None:
+            continue
+        eid = g["game_id"].split(":")[-1]
+        box = data_nba_box.fetch_box(eid) or []
+        margin = g["home_score"] - g["away_score"]
+        cover = margin + odds["c_spread_home"]
+        pts = g["home_score"] + g["away_score"]
+        tot = odds.get("c_total")
+        pm = None
+        if odds.get("c_ml_home") and odds.get("c_ml_away"):
+            pm = (1 / odds["c_ml_home"]) / (1 / odds["c_ml_home"] + 1 / odds["c_ml_away"])
+        opts = conn.execute("SELECT * FROM predictions WHERE game_id=? AND result IN ('W','L','P')", (g["game_id"],)).fetchall()
+        rows.append({"g": dict(g), "odds": odds, "box": box, "margin": margin, "cover": cover, "pts": pts, "tot": tot,
+                     "pm_home": pm, "opts": opts})
+    if not rows:
+        return None, []
+    n = len(rows)
+    fav_home = lambda r: r["odds"]["c_spread_home"] <= 0
+    fav_cover = sum(1 for r in rows if r["cover"] != 0 and ((r["cover"] > 0) == fav_home(r)))
+    decided = sum(1 for r in rows if r["cover"] != 0)
+    home_cover = sum(r["cover"] > 0 for r in rows)
+    overs = sum(1 for r in rows if r["tot"] and r["pts"] > r["tot"])
+    unders = sum(1 for r in rows if r["tot"] and r["pts"] < r["tot"])
+    avg_pts = sum(r["pts"] for r in rows) / n
+    avg_tot = sum(r["tot"] for r in rows if r["tot"]) / max(1, sum(1 for r in rows if r["tot"]))
+    fav_win = sum(1 for r in rows if r["pm_home"] is not None and ((r["margin"] > 0) == (r["pm_home"] >= 0.5)))
+    upsets = [r for r in rows if r["pm_home"] is not None and ((r["margin"] > 0 and r["pm_home"] < 0.35) or (r["margin"] < 0 and r["pm_home"] > 0.65))]
+    moved = []
+    for r in rows:
+        o = r["odds"]
+        if o.get("o_spread_home") is not None and abs(o["c_spread_home"] - o["o_spread_home"]) >= 2 and r["cover"] != 0:
+            toward_home = o["c_spread_home"] < o["o_spread_home"]
+            moved.append((r, (r["cover"] > 0) == toward_home))
+    best = []
+    for r in rows:
+        if r["opts"]:
+            b = max(r["opts"], key=lambda o: o["p_model"] * o["odds"] - 1)
+            best.append((b, b["p_model"] * b["odds"] - 1))
+    rec = [(b, ev) for b, ev in best if ev >= MIN_EDGE]
+    t0 = to_tpe(parse_iso(min(r["g"]["kickoff"] for r in rows)))
+    lines = [f"🏀 <b>NBA 盤後分析</b>｜{t0:%m/%d} 起 {n} 場", "",
+             "<b>盤口表現</b>",
+             f"• 讓分：讓分方（熱門）贏盤 {fav_cover}/{decided}，主隊贏盤 {home_cover}/{n}",
+             f"• 大小分：平均總分 {avg_pts:.1f} vs 盤口平均 {avg_tot:.1f}（{avg_pts - avg_tot:+.1f}），大 {overs} 場、小 {unders} 場",
+             f"• 不讓分：熱門打出 {fav_win}/{n} 場"
+             + (f"；爆冷（賽前 <35%）{len(upsets)} 場：" + "、".join(
+                 f"{escape(live.team_name(r['g'], 'away'))} {r['g']['away_score']}-{r['g']['home_score']} {escape(live.team_name(r['g'], 'home'))}"
+                 for r in upsets) if upsets else "")]
+    if moved:
+        lines.append(f"• 讓分盤開→收移動 ≥2 分的 {len(moved)} 場：跟著資金方向的一方贏盤 {sum(ok for _, ok in moved)} 場")
+    lines += ["", "<b>模型</b>"]
+    if best:
+        lines.append(f"• 系統建議下注（EV ≥{MIN_EDGE*100:.0f}%）：{len(rec)} 注" + (f"，{sum(b['profit'] or 0 for b, _ in rec):+.2f} 注" if rec else "（全部觀望 → 0 損失）"))
+        lines.append(f"• 假設每場硬買 EV 最高的選項：{sum((b['profit'] or 0) > 0 for b, _ in best)} 勝 {sum((b['profit'] or 0) < 0 for b, _ in best)} 負，"
+                     f"{sum(b['profit'] or 0 for b, _ in best):+.2f} 注")
+    lines.append("• 球員狀態調整（疲勞、缺陣）要等每隊打滿 5 場、主力有季平均後才啟用；之前只顯示不調整")
+    blocks = []
+    for r in rows:
+        g, o = r["g"], r["odds"]
+        sp = o["c_spread_home"]
+        away, home = live.team_name(g, "away"), live.team_name(g, "home")
+        fav = home if sp <= 0 else away
+        cov_txt = "走盤" if r["cover"] == 0 else ("主隊贏盤" if r["cover"] > 0 else "客隊贏盤")
+        ou = "" if not r["tot"] else ("大" if r["pts"] > r["tot"] else "小" if r["pts"] < r["tot"] else "走")
+        ls = [f"🏀 NBA｜{to_tpe(parse_iso(g['kickoff'])):%m/%d %H:%M}",
+              f"<b>{escape(away)} {g['away_score']} @ {g['home_score']} {escape(home)}</b>",
+              f"賽前：讓分 主{sp:+g}（{escape(fav)} 讓）"
+              + (f"，開盤 {o['o_spread_home']:+g}" if o.get("o_spread_home") is not None and o["o_spread_home"] != sp else "")
+              + (f"｜大小 {r['tot']:g}" if r["tot"] else "")
+              + (f"｜主勝率 {r['pm_home']*100:.0f}%" if r["pm_home"] is not None else ""),
+              f"結果：{cov_txt}（主隊淨勝 {r['margin']:+d}，主隊讓分 {sp:+g}）｜總分 {r['pts']}" + (f"（{ou}）" if ou else "")]
+        if r["box"]:
+            for side, team in (("away", g["away_abbr"]), ("home", g["home_abbr"])):
+                top, out = _nba_player_line(r["box"], team)
+                nm = escape(live.team_name(g, side))
+                if top:
+                    ls.append(f"　{nm}：{escape(top)}")
+                if out:
+                    ls.append(f"　　🚑 缺陣：{escape('、'.join(out))}")
+        if r["opts"]:
+            b = max(r["opts"], key=lambda o: o["p_model"] * o["odds"] - 1)
+            ev = b["p_model"] * b["odds"] - 1
+            ls.append(f"模型最佳：{escape(_opt_name(g, b))}（EV {ev*100:+.1f}%{'' if ev >= MIN_EDGE else '，觀望'}）→ "
+                      f"{_mark(b['profit'] or 0)} {b['profit'] or 0:+.2f} 注")
+        blocks.append("\n".join(ls))
+    return "\n".join(lines), blocks
 
 
 def _opt_name(g: dict, o) -> str:
@@ -233,12 +341,15 @@ def daily(hours: float = 24) -> list[str]:
         calib = learning.calibration(conn)
         fb = review_games(hours)
         us = us_sports_blocks(conn, hours)
+        nba_head, nba_games = nba_blocks(conn, hours)
         par = parlay_blocks(conn, hours)
     finally:
         conn.close()
     head = [summary(fb, hours) if fb else f"🧾 <b>盤後分析</b>｜過去 {hours:g} 小時沒有可檢討的足球比賽"]
+    if nba_head:
+        head.append(nba_head)
     tail = ["🧠 <b>模型學習狀態</b>"] + (learn or ["（還沒有已結算的預測）"])
     if calib:
         tail += ["校準（模型給的機率 vs 實際發生比例，越接近越好）："] + calib
     tail.append("模型會自動調整「市場 vs 歷史相似盤口」的權重：哪個比較準就多信哪個。")
-    return head + par + ["\n".join(tail)] + [match_block(r) for r in fb] + us
+    return head + par + ["\n".join(tail)] + nba_games + [match_block(r) for r in fb] + us

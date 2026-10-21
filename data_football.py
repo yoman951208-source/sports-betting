@@ -39,12 +39,23 @@ def _season_label(code: str) -> str:
     return f"20{code[:2]}-{code[2:]}"
 
 
+_SITE_DOWN = False   # 本次執行中 football-data.co.uk 已確認連不上
+
+
 def _download(div: str, season: str, current: bool) -> pd.DataFrame | None:
     path = CACHE_DIR / "football" / f"{season}_{div}.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
     stale = current and (not path.exists() or time.time() - path.stat().st_mtime > 12 * 3600)
     if not path.exists() or stale:
-        resp = http_get(URL.format(season=season, div=div))
+        # 已有舊快取時只快速試一次（連不上就用舊資料，不要卡住整份報告）；沒有快取才完整重試
+        if path.exists():
+            global _SITE_DOWN
+            resp = None if _SITE_DOWN else http_get(URL.format(season=season, div=div), retries=1, timeout=6)
+            if resp is None and not _SITE_DOWN:
+                _SITE_DOWN = True
+                log.warning("football-data.co.uk 暫時連不上，本輪改用本機快取的舊資料")
+        else:
+            resp = http_get(URL.format(season=season, div=div))
         if resp is None:
             if not path.exists():
                 log.warning("下載失敗：%s %s", div, season)

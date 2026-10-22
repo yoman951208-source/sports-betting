@@ -68,7 +68,9 @@
 | 在哪裡 | 做什麼 |
 |---|---|
 | **GitHub Actions**（公開 repo，免費、不限分鐘） | `.github/workflows/betting.yml` 每小時 :07、:37 跑 `main.py cloud`：一輪監控 + 到期的每日工作（台灣時間判斷）。資料庫與策略檔存在 **`data` 分支**，歷史賠率快取用 actions/cache |
-| **本機**（工作排程器 SportsBetting，`main.py bot`） | 只回答 Telegram 指令；每 5 分鐘從 `data` 分支同步最新資料庫。電腦關機不影響監控與每日報告 |
+| **Cloudflare Worker**（`worker/`，免費） | Telegram webhook 接收訊息與按鈕：說明／選單秒回，其他指令立刻回「處理中」並觸發 GitHub `command.yml`，約 30–60 秒回覆。**電腦關機也能用按鈕** |
+| **GitHub Actions `command.yml`** | 由 Worker 觸發，跑 `main.py command` 處理一則指令（只讀資料，不寫回） |
+| 本機（工作排程器 SportsBetting） | **已停用**（10/23 起改用 webhook）。要改回本機接收：先 `deleteWebhook`，再啟用工作排程器（`main.py bot`） |
 
 Telegram 金鑰放在 repo 的 Actions secrets（`TELEGRAM_BOT_TOKEN`、`TELEGRAM_CHAT_ID`），不在程式碼裡。
 要改回全部在本機跑：工作排程器參數改成 `main.py loop`，並停用 workflow。

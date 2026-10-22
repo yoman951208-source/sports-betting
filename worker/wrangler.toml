@@ -1,0 +1,8 @@
+name = "sports-betting-bot"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+GH_REPO = "yoman951208-source/sports-betting"
+
+# 機密（不寫在這裡，用 wrangler secret put 設定）：BOT_TOKEN、CHAT_ID、GH_TOKEN、WEBHOOK_SECRET

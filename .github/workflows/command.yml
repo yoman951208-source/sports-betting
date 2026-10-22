@@ -1,0 +1,58 @@
+# Telegram 按鈕／指令：由 Cloudflare Worker 觸發，在雲端跑分析並回覆（電腦關機也能用）
+# 只讀取資料（不寫回 data 分支），所以可以和 betting.yml 同時執行
+name: command
+
+on:
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "message 或 callback"
+        required: true
+        type: string
+      payload:
+        description: "文字指令或按鈕資料"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Taipei
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      # 使用者輸入只經由環境變數傳給 Python，不直接放進 shell 指令（避免指令注入）
+      CMD_KIND: ${{ inputs.kind }}
+      CMD_PAYLOAD: ${{ inputs.payload }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restore history cache
+        uses: actions/cache/restore@v6
+        with:
+          path: data/cache
+          key: hist-none
+          restore-keys: hist-
+
+      - name: Restore state from data branch
+        run: |
+          mkdir -p data
+          if git fetch -q --depth=1 origin data; then
+            git show FETCH_HEAD:betting.db > data/betting.db
+            git show FETCH_HEAD:strategies.json > data/strategies.json || rm -f data/strategies.json
+          fi
+
+      - name: Handle command
+        run: python main.py command

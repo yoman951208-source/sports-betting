@@ -179,6 +179,24 @@ def cloud_once() -> None:
     run_due_jobs(daily_jobs())
 
 
+def run_command() -> None:
+    """GitHub Actions（command.yml）：處理一則 Telegram 訊息或按鈕。內容由 Cloudflare Worker 透過環境變數傳入。"""
+    import os
+    import bot
+    kind, payload = os.getenv("CMD_KIND", ""), os.getenv("CMD_PAYLOAD", "").strip()
+    if not payload:
+        return
+    log.info("雲端指令：%s %s", kind, payload[:60])
+    try:
+        if kind == "callback":
+            bot.handle_callback(payload)
+        else:
+            bot.handle(payload)
+    except Exception as exc:
+        log.error("指令處理失敗：\n%s", traceback.format_exc())
+        send_telegram(f"處理「{payload[:30]}」時發生錯誤：{exc}", parse_mode=None)
+
+
 def sync_state() -> bool:
     """從 GitHub data 分支下載雲端最新的資料庫與策略檔（本機只負責回答 Telegram 指令時用）。"""
     import os
@@ -246,7 +264,7 @@ def loop() -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description="運彩分析機器人（足球 + NBA）")
     ap.add_argument("command", choices=["backtest", "run", "digest", "report", "oddsapi", "strategies", "test-notify", "loop",
-                                        "analyze", "league", "review", "parlay", "cloud", "bot", "sync", "best"])
+                                        "analyze", "league", "review", "parlay", "cloud", "bot", "sync", "best", "command"])
     ap.add_argument("query", nargs="?", default="", help="analyze：隊名；league：聯賽名稱（如 歐冠）")
     ap.add_argument("--hours", type=float, default=36, help="league：分析未來幾小時的比賽")
     ap.add_argument("--send", action="store_true", help="backtest：把報告發到 Telegram")
@@ -263,6 +281,8 @@ def main() -> int:
         return 0 if ok else 1
     elif a.command == "cloud":
         cloud_once()
+    elif a.command == "command":
+        run_command()
     elif a.command == "bot":
         bot_mode()
     elif a.command == "sync":

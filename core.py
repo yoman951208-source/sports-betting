@@ -211,25 +211,29 @@ def _split_message(text: str, limit: int = 4000) -> list[str]:
     return parts
 
 
-def send_telegram(text: str, parse_mode: str | None = "HTML", dry_run: bool = False, retries: int = 3) -> bool:
-    """發送訊息（自動分段）。dry_run 時只印出來。"""
+def send_telegram(text: str, parse_mode: str | None = "HTML", dry_run: bool = False, retries: int = 3,
+                  reply_markup: dict | None = None) -> bool:
+    """發送訊息（自動分段）。reply_markup = Telegram 按鈕（附在最後一段）。dry_run 時只印出來。"""
     if dry_run:
         print("=" * 60 + "\n" + text + "\n" + "=" * 60)
+        if reply_markup:
+            print("[按鈕]", reply_markup)
         return True
     token, chat_id = _telegram_credentials()
     if not token or not chat_id:
         log.error("未設定 TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID（.env），無法發送")
         return False
     ok = True
-    for chunk in _split_message(text):
-        ok &= _send_one(chunk, token, chat_id, parse_mode, retries)
+    chunks = _split_message(text)
+    for i, chunk in enumerate(chunks):
+        ok &= _send_one(chunk, token, chat_id, parse_mode, retries, reply_markup if i == len(chunks) - 1 else None)
     return ok
 
 
 BLOCK_SEP = "\n\n" + "━" * 12 + "\n\n"
 
 
-def send_blocks(blocks: list[str], sep: str = BLOCK_SEP, dry_run: bool = False) -> bool:
+def send_blocks(blocks: list[str], sep: str = BLOCK_SEP, dry_run: bool = False, reply_markup: dict | None = None) -> bool:
     """把多段內容盡量塞進同一則訊息（每則 ≤4000 字），避免洗版又不把一段拆開。"""
     msgs, buf = [], ""
     for b in blocks:
@@ -239,14 +243,18 @@ def send_blocks(blocks: list[str], sep: str = BLOCK_SEP, dry_run: bool = False) 
         buf = f"{buf}{sep}{b}" if buf else b
     if buf:
         msgs.append(buf)
-    return all([send_telegram(m, dry_run=dry_run) for m in msgs])
+    return all([send_telegram(m, dry_run=dry_run, reply_markup=reply_markup if i == len(msgs) - 1 else None)
+                for i, m in enumerate(msgs)])
 
 
-def _send_one(text: str, token: str, chat_id: str, parse_mode: str | None, retries: int) -> bool:
+def _send_one(text: str, token: str, chat_id: str, parse_mode: str | None, retries: int,
+              reply_markup: dict | None = None) -> bool:
     url = TELEGRAM_API.format(token=token, method="sendMessage")
     payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
     if parse_mode:
         payload["parse_mode"] = parse_mode
+    if reply_markup:
+        payload["reply_markup"] = reply_markup
     for attempt in range(1, retries + 1):
         wait = 2 * attempt
         try:

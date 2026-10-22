@@ -67,7 +67,7 @@ def send_review(hours: float, dry_run: bool) -> None:
     import review
     head, *blocks = review.daily(hours)
     send_telegram(head, dry_run=dry_run)
-    send_blocks(blocks, dry_run=dry_run)
+    send_blocks(blocks, dry_run=dry_run, reply_markup={"inline_keyboard": [[{"text": "🏆 今日推薦", "callback_data": "c:推薦"}, {"text": "📒 戰績", "callback_data": "c:report"}]]})
 
 
 def send_daily_parlays(dry_run: bool) -> None:
@@ -83,7 +83,8 @@ def send_daily_parlays(dry_run: bool) -> None:
         record = parlay.record_lines(conn, 30)[0]
     finally:
         conn.close()
-    send_blocks(best, dry_run=dry_run)
+    import bot
+    send_blocks(best, dry_run=dry_run, reply_markup=bot.BEST_BUTTONS)
     send_telegram("📚 <b>更多串關選擇</b>\n" + head + f"\n\n📒 近 30 天串關實戰：{record}", dry_run=dry_run)
     send_blocks(blocks, dry_run=dry_run)
 
@@ -215,6 +216,7 @@ def bot_mode() -> None:
     """本機「只回指令」模式：監控與每日工作由雲端負責；每 5 分鐘同步一次雲端資料庫。"""
     import bot
     log.info("本機指令模式啟動：監控與每日報告在 GitHub Actions 執行，這裡只回答 Telegram 指令")
+    bot.setup_commands()   # 左下角「/」指令選單
     last = 0.0
     while True:
         if time.time() - last > 300:

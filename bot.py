@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Telegram 指令：在常駐模式中用 long polling 接收訊息，只回應 .env 裡設定的 chat_id。
+"""Telegram 介面：固定選單按鈕 + 訊息內按鈕（inline keyboard），只回應 .env 裡設定的 chat_id。
 
-  /help                 說明
-  /ucl 或 歐冠           歐冠未來 36 小時全部比賽分析（歐霸、英超、西甲… 也可以直接打聯賽名稱）
-  /nba                  NBA 未來 24 小時比賽分析
-  /today 或 總覽         每日總覽
-  /report 或 成績        實戰成績
-  直接打隊名             例如：曼城、Arsenal、湖人、LAL → 分析該隊下一場比賽
+固定選單（輸入框下方）：🏆今日推薦 🎟️串關 🏀NBA ⚾MLB ⚽足球 🧾賽後檢討 📅今日總覽 📒戰績 ❓說明
+訊息內按鈕：
+  聯賽總表 → 每場比賽一顆按鈕，點了才展開那場的詳細分析（不會一次洗十幾則訊息）
+  今日推薦 → 🔄 重新整理 / 🎟️ 更多串關 / 📒 戰績
+也仍然可以直接打字：隊名（曼城、湖人、LAL）、聯賽（歐冠、英超）、推薦、串關、賽後…
 """
 from __future__ import annotations
 
@@ -15,48 +14,132 @@ import time
 import requests
 
 import config
-from core import DATA_DIR, _telegram_credentials, db, kv_get, kv_set, log, send_blocks, send_telegram
+from core import DATA_DIR, TELEGRAM_API, _telegram_credentials, db, log, send_blocks, send_telegram
 
 OFFSET_FILE = DATA_DIR / "tg_offset.txt"   # Telegram 讀取位置（本機專用，不隨雲端同步）
 
-HELP = """🤖 <b>運彩分析機器人 指令</b>
+# ---------------------------------------------------------------- 按鈕定義
+MENU = {
+    "keyboard": [
+        [{"text": "🏆 今日推薦"}, {"text": "🎟️ 串關"}],
+        [{"text": "🏀 NBA"}, {"text": "⚾ MLB"}, {"text": "⚽ 足球"}],
+        [{"text": "🧾 賽後檢討"}, {"text": "📅 今日總覽"}],
+        [{"text": "📒 戰績"}, {"text": "❓ 說明"}],
+    ],
+    "resize_keyboard": True,
+    "is_persistent": True,
+    "input_field_placeholder": "按下面的按鈕，或輸入隊名（例：湖人、曼城）",
+}
+BUTTONS = {"🏆 今日推薦": "推薦", "🎟️ 串關": "串關", "🏀 NBA": "nba", "⚾ MLB": "mlb", "⚽ 足球": "足球",
+           "🧾 賽後檢討": "賽後", "📅 今日總覽": "today", "📒 戰績": "report", "❓ 說明": "help"}
+BEST_BUTTONS = {"inline_keyboard": [
+    [{"text": "🔄 重新整理", "callback_data": "c:推薦"}],
+    [{"text": "🎟️ 更多串關", "callback_data": "c:串關 全部"}, {"text": "📒 戰績", "callback_data": "c:report"}],
+]}
+BOT_COMMANDS = [("best", "🏆 今日最推薦（單關、二串一、三串一）"), ("parlay", "🎟️ 串關建議"),
+                ("nba", "🏀 NBA 比賽"), ("mlb", "⚾ MLB 比賽"), ("football", "⚽ 足球（選聯賽）"),
+                ("review", "🧾 賽後檢討"), ("today", "📅 今日總覽"), ("report", "📒 實戰戰績"),
+                ("menu", "顯示按鈕選單"), ("help", "說明")]
 
-直接輸入<b>隊名</b>（中英文都可）→ 分析該隊下一場比賽
-  例：曼城、皇馬、Arsenal、湖人、LAL
+HELP = """🤖 <b>運彩分析機器人</b>
 
-<b>聯賽名稱</b> → 整個聯賽未來 36 小時的分析
-  例：歐冠、歐霸、英超、西甲、義甲、德甲、法甲
+👇 <b>直接按下面的按鈕</b>就可以用：
+🏆 <b>今日推薦</b>：掃描所有比賽，給出最推薦的單關、二串一、三串一
+🎟️ <b>串關</b>：更多二串一、三串一組合
+🏀 <b>NBA</b>／⚾ <b>MLB</b>／⚽ <b>足球</b>：先看總表，<b>點比賽按鈕</b>才展開詳細分析
+🧾 <b>賽後檢討</b>：賽前預測 vs 實際結果
+📅 <b>今日總覽</b>　📒 <b>戰績</b>
 
-/nba　NBA 未來 24 小時
-MLB（或 棒球、季後賽）　MLB 未來 48 小時，含先發投手、系列賽、傷兵
-/today　每日總覽
-<b>推薦</b>（或 最推薦、/best）　🏆 掃描所有比賽，給出最推薦的單關、二串一、三串一（附評等、理由、運彩門檻）
-串關　未來 24 小時的二串一、三串一建議（預設歐冠；可加聯賽，例：串關 英超、串關 全部）
-/review 或 賽後　過去 24 小時完賽比賽的賽後檢討（賽前預測 vs 實際）
-/report　實戰成績
-/help　顯示這個說明
+也可以直接打字：隊名（曼城、皇馬、湖人、LAL）、聯賽（歐冠、英超、西甲）
 
-每場分析會列出各選項的「合理賠率」：<b>運彩開的賠率 ≥ 合理賠率</b>才有正期望值。"""
+判斷原則只有一條：<b>運彩賠率 ≥ 合理賠率才下</b>，低於就跳過，只用小注。"""
 
-LEAGUE_WORDS = {"ucl": "歐冠", "uel": "歐霸", "epl": "英超", "mlb": "MLB", "美職": "MLB", "棒球": "MLB", "季後賽": "MLB", **{v[1]: v[1] for v in config.FOOTBALL_LEAGUES.values()},
-                **{v: v for v in config.FOOTBALL_CUPS.values()}}
+LEAGUE_WORDS = {"ucl": "歐冠", "uel": "歐霸", "epl": "英超", "mlb": "MLB", "美職": "MLB", "棒球": "MLB", "季後賽": "MLB",
+                **{v[1]: v[1] for v in config.FOOTBALL_LEAGUES.values()}, **{v: v for v in config.FOOTBALL_CUPS.values()}}
+
+_DETAIL: dict[str, tuple[str, float]] = {}   # game_id → (分析文字, 時間)：聯賽總表算過的直接給，點按鈕秒回
 
 
-def _has_league(league: str, hours: float = 24) -> bool:
+# ---------------------------------------------------------------- 工具
+def _api(method: str, **payload) -> dict:
+    token, _ = _telegram_credentials()
+    try:
+        return requests.post(TELEGRAM_API.format(token=token, method=method), json=payload, timeout=15).json()
+    except (requests.RequestException, ValueError):
+        return {}
+
+
+def setup_commands() -> None:
+    """設定左下角「/」指令選單（只需設一次，重複設定無害）。"""
+    _api("setMyCommands", commands=[{"command": c, "description": d} for c, d in BOT_COMMANDS])
+
+
+def _game_label(g: dict) -> str:
+    import analyze
+    from core import parse_iso, to_tpe
+    t = to_tpe(parse_iso(g["kickoff"]))
+    label = f"{t:%m/%d %H:%M} {analyze.game_title(g)}"
+    return label if len(label) <= 40 else label[:39] + "…"
+
+
+def _league_view(games: list[dict], league: str, hours: float) -> None:
+    """聯賽總表 + 每場一顆按鈕。"""
+    import analyze
+    sel = analyze.upcoming(games, hours, league=league)
+    if not sel:
+        send_telegram(f"未來 {hours:g} 小時沒有{league}比賽。", reply_markup=MENU)
+        return
+    head, *details = analyze.league_report(games, league, hours)
+    now = time.time()
+    for g, d in zip(sel, details):
+        _DETAIL[g["game_id"]] = (d, now)
+    rows = [[{"text": _game_label(g), "callback_data": f"g:{g['game_id']}"}] for g in sel[:30]]
+    rows.append([{"text": f"🎟️ {league} 串關", "callback_data": f"c:串關 {league}"},
+                 {"text": "🏆 今日推薦", "callback_data": "c:推薦"}])
+    send_telegram(head + "\n\n👇 <b>點比賽看詳細分析</b>", reply_markup={"inline_keyboard": rows})
+
+
+def _football_picker(games: list[dict]) -> None:
+    """⚽ 足球：列出未來 36 小時有比賽的聯賽，點了才看那個聯賽。"""
+    import analyze
+    counts: dict[str, int] = {}
+    for g in analyze.upcoming(games, 36, sport="football"):
+        counts[g["league"]] = counts.get(g["league"], 0) + 1
+    if not counts:
+        send_telegram("未來 36 小時沒有監控中的足球比賽。", reply_markup=MENU)
+        return
+    btns = [{"text": f"{lg}（{n}）", "callback_data": f"lg:{lg}"} for lg, n in sorted(counts.items(), key=lambda x: -x[1])]
+    rows = [btns[i:i + 3] for i in range(0, len(btns), 3)]
+    rows.append([{"text": "🎟️ 全部足球串關", "callback_data": "c:串關 全部"}])
+    send_telegram("⚽ <b>選擇聯賽</b>（括號是未來 36 小時的場數）", reply_markup={"inline_keyboard": rows})
+
+
+def _game_detail(game_id: str) -> None:
     import analyze
     import live
-    return bool(analyze.upcoming(live.fetch_games(), hours, league=league))
+    hit = _DETAIL.get(game_id)
+    if hit and time.time() - hit[1] < 900:
+        text = hit[0]
+    else:
+        g = next((x for x in live.fetch_games() if x["game_id"] == game_id), None)
+        if not g:
+            send_telegram("找不到這場比賽（可能已經開賽或結束）。")
+            return
+        text = analyze.analyze_game(g)[0]
+        _DETAIL[game_id] = (text, time.time())
+    send_telegram(text, reply_markup={"inline_keyboard": [[{"text": "🔄 用最新盤口重算", "callback_data": f"r:{game_id}"}]]})
 
 
+# ---------------------------------------------------------------- 指令
 def handle(text: str) -> None:
     import analyze
     import live
 
-    t = text.strip()
+    t = BUTTONS.get(text.strip(), text.strip())
     cmd, _, arg = t.lstrip("/").partition(" ")
     cmd = cmd.split("@")[0].lower()
-    if cmd in ("start", "help", "說明", "指令"):
-        send_telegram(HELP)
+    if cmd in ("start", "help", "說明", "指令", "menu", "選單"):
+        send_telegram(HELP, reply_markup=MENU)
         return
     if cmd in ("today", "總覽", "今日"):
         conn = db()
@@ -68,21 +151,30 @@ def handle(text: str) -> None:
     if cmd in ("best", "推薦", "最推薦", "今日推薦", "建議"):
         import picks
         send_telegram("🔍 掃描所有比賽中…")
-        send_blocks(picks.report(live.fetch_games(), float(arg) if arg.replace(".", "", 1).isdigit() else 24))
+        send_blocks(picks.report(live.fetch_games(), float(arg) if arg.replace(".", "", 1).isdigit() else 24),
+                    reply_markup=BEST_BUTTONS)
         return
     if cmd in ("parlay", "串關", "串"):
         import parlay
-        lg = LEAGUE_WORDS.get(arg.strip(), arg.strip() or None) if arg.strip() != "全部" else None
-        msgs = parlay.report(live.fetch_games(), lg if arg.strip() else "歐冠" if _has_league("歐冠") else None, 24)
+        a = arg.strip()
+        lg = None if a in ("", "全部") else LEAGUE_WORDS.get(a, a)
+        msgs = parlay.report(live.fetch_games(), lg, 24)
         send_telegram(msgs[0])
-        send_blocks(msgs[1:])
+        send_blocks(msgs[1:], reply_markup={"inline_keyboard": [[{"text": "🏆 今日推薦", "callback_data": "c:推薦"}]]})
         return
     if cmd in ("review", "賽後", "檢討", "賽果"):
         import review
         hours = float(arg) if arg.replace(".", "", 1).isdigit() else 24
         head, *blocks = review.build(hours)
+        conn = db()
+        try:
+            nba_head, nba_games = review.nba_blocks(conn, hours)
+        finally:
+            conn.close()
         send_telegram(head)
-        send_blocks(blocks)
+        if nba_head:
+            send_telegram(nba_head)
+        send_blocks(blocks + nba_games)
         return
     if cmd in ("report", "成績", "戰績"):
         conn = db()
@@ -93,46 +185,76 @@ def handle(text: str) -> None:
         return
 
     games = live.fetch_games()
+    if cmd in ("football", "足球"):
+        _football_picker(games)
+        return
     league = "NBA" if cmd in ("nba", "籃球") else LEAGUE_WORDS.get(cmd) or LEAGUE_WORDS.get(t)
     if league:
-        hours = {"NBA": 24, "MLB": 48}.get(league, 36)
-        send_telegram(f"🔍 分析{league}未來 {hours} 小時的比賽中…")
-        head, *details = analyze.league_report(games, league, hours)
-        send_telegram(head)
-        send_blocks(details)
+        _league_view(games, league, {"NBA": 24, "MLB": 48}.get(league, 36))
         return
 
     query = arg if cmd in ("a", "analyze", "分析") else t
     found = analyze.search(games, query)
     if not found:
-        send_telegram(f"找不到「{query}」未來 4 天內的比賽。\n可以輸入隊名（例：曼城、Arsenal、湖人、LAL）或聯賽（例：歐冠）。/help 看全部指令")
+        send_telegram(f"找不到「{query}」未來 4 天內的比賽。\n可以按下面的按鈕，或輸入隊名（例：曼城、湖人、LAL）。",
+                      reply_markup=MENU)
         return
-    if len(found) > 5:
-        send_telegram(f"找到 {len(found)} 場，先分析最近的 5 場；可以打更完整的隊名縮小範圍。")
-    send_blocks([analyze.analyze_game(g)[0] for g in found[:5]])
+    if len(found) > 1:   # 多場：先給按鈕讓使用者選
+        rows = [[{"text": _game_label(g), "callback_data": f"g:{g['game_id']}"}] for g in found[:10]]
+        send_telegram(f"找到 {len(found)} 場，點要看的比賽：", reply_markup={"inline_keyboard": rows})
+        return
+    _game_detail(found[0]["game_id"])
 
 
+def handle_callback(data: str) -> None:
+    kind, _, val = data.partition(":")
+    if kind == "c":
+        handle(val)
+    elif kind == "lg":
+        import live
+        _league_view(live.fetch_games(), val, {"NBA": 24, "MLB": 48}.get(val, 36))
+    elif kind == "g":
+        _game_detail(val)
+    elif kind == "r":
+        _DETAIL.pop(val, None)
+        _game_detail(val)
+
+
+# ---------------------------------------------------------------- 接收
 def poll(timeout: int = 20) -> None:
-    """等待新訊息最多 timeout 秒並處理；沒設定 Telegram 時就單純睡覺。"""
+    """等待新訊息 / 按鈕最多 timeout 秒並處理；沒設定 Telegram 時就單純睡覺。"""
     token, chat_id = _telegram_credentials()
     if not token or not chat_id:
         time.sleep(timeout)
         return
     # 不在等待期間開著資料庫：Windows 上開著的檔案無法被雲端同步覆蓋。
-    # 讀取位置存在獨立的小檔案，同步資料庫時才不會被蓋掉。
     try:
         offset = int(OFFSET_FILE.read_text().strip() or 0) if OFFSET_FILE.exists() else 0
     except (OSError, ValueError):
         offset = 0
     try:
         resp = requests.get(f"https://api.telegram.org/bot{token}/getUpdates",
-                            params={"offset": offset, "timeout": timeout, "allowed_updates": '["message"]'},
+                            params={"offset": offset, "timeout": timeout,
+                                    "allowed_updates": '["message","callback_query"]'},
                             timeout=timeout + 15)
         updates = resp.json().get("result", []) if resp.ok else []
         if not resp.ok:
             time.sleep(5)
         for u in updates:
             OFFSET_FILE.write_text(str(u["update_id"] + 1))  # 先記錄，避免出錯時無限重試同一則
+            cq = u.get("callback_query")
+            if cq:
+                if str(((cq.get("message") or {}).get("chat") or {}).get("id")) != chat_id:
+                    continue
+                _api("answerCallbackQuery", callback_query_id=cq["id"], text="處理中…")
+                data = cq.get("data") or ""
+                log.info("按鈕：%s", data[:60])
+                try:
+                    handle_callback(data)
+                except Exception as exc:
+                    log.exception("按鈕處理失敗")
+                    send_telegram(f"處理按鈕時發生錯誤：{exc}", parse_mode=None)
+                continue
             msg = u.get("message") or {}
             text = (msg.get("text") or "").strip()
             if str(msg.get("chat", {}).get("id")) != chat_id or not text:

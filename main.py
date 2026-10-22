@@ -173,7 +173,7 @@ def cloud_once() -> None:
         cal = kv_get(conn, "calibration") or ""
     finally:
         conn.close()
-    if "nba_form_spread" not in cal:   # 沒有校準、或還沒有 10/19 新增的球員狀態係數 → 重新估計
+    if "football_spread" not in cal:   # 沒有校準、或還沒有最新加入的係數（10/23 足球讓分主隊截距）→ 重新估計
         safe(calibration.refit)
     safe(live.run_cycle)
     run_due_jobs(daily_jobs())

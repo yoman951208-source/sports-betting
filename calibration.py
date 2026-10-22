@@ -8,6 +8,8 @@
   足球 1X2  ：logit(p)、是否和局、logit(p)×和局          （3 個測試季都改善）
   NBA 不讓分：logit(p)、開盤→收盤的 logit 變化          （2 季都改善；資金方向在收盤後仍有資訊）
   NBA 讓分  ：logit(p)、讓分移動（主隊被買為正，單位：分）（2 季都改善）
+  足球讓分  ：只加截距（斜率固定 1）—— 莊家在讓球盤對主隊多抽，主隊實際贏盤率比去水機率低約 1.6–2.3pp
+              （10/23「莊家角度」評估：3 個測試季都改善；估斜率反而不穩，所以只估截距）
   其餘（MLB、所有大小分）：校準在樣本外變差 → 維持原始市場機率（足球大小只換成 power 去水）
 係數每週隨回測重新估計，存在資料庫 kv「calibration」（雲端與本機會一起同步）。
 """
@@ -84,6 +86,15 @@ def _fit(X: np.ndarray, y: np.ndarray) -> list[float]:
     return [round(float(v), 5) for v in w]
 
 
+def _fit_intercept(lp: np.ndarray, y: np.ndarray) -> float:
+    """斜率固定 1、只估截距：logit(p真) = a + logit(p市場)。"""
+    a = 0.0
+    for _ in range(30):
+        p = _sigmoid(a + lp)
+        a -= float((p - y).sum() / (p * (1 - p)).sum())
+    return round(a, 5)
+
+
 def fit_all() -> dict:
     import pandas as pd
     import data_football
@@ -98,6 +109,13 @@ def fit_all() -> dict:
         X.append(np.column_stack([lp, draw, lp * draw]))
         y.append((fb["ftr"] == lab).to_numpy(float))
     out["football_1x2"] = _fit(np.vstack(X), np.concatenate(y))
+    # 讓球：只用整數 / 半球盤（DK 的足球讓分都是半球盤；四分之一盤會半贏半輸，不能當成輸贏二元）
+    ah = fb.dropna(subset=["c_ah_line", "c_ah_h", "c_ah_a"])
+    ah = ah[(ah["c_ah_line"] * 2) % 1 == 0]
+    m = ah["hg"] - ah["ag"] + ah["c_ah_line"]
+    ah, m = ah[m != 0], m[m != 0]
+    lp = _logit(_power_matrix(ah[["c_ah_h", "c_ah_a"]].to_numpy(float))[:, 0])
+    out["football_spread"] = _fit_intercept(lp, (m > 0).to_numpy(float))
 
     nba = data_nba.load_history()
     ml = nba.dropna(subset=["c_ml_home", "c_ml_away", "o_ml_home", "o_ml_away"])
@@ -111,7 +129,7 @@ def fit_all() -> dict:
     ps = _power_matrix(sp[["c_spread_home_odds", "c_spread_away_odds"]].fillna(1.91).to_numpy(float))[:, 0]
     dsp = -(sp["c_spread_home"] - sp["o_spread_home"]).to_numpy(float)
     out["nba_spread"] = _fit(np.column_stack([_logit(ps), dsp]), (m > 0).to_numpy(float))
-    out["n"] = {"football": int(len(fb)), "nba_ml": int(len(ml)), "nba_spread": int(len(sp))}
+    out["n"] = {"football": int(len(fb)), "football_spread": int(len(ah)), "nba_ml": int(len(ml)), "nba_spread": int(len(sp))}
     try:
         out.update(_fit_nba_form(nba, out["nba_ml"], out["nba_spread"]))
     except Exception:  # box score 抓不到時不影響其他校準
@@ -193,6 +211,7 @@ def coefs() -> dict:
     # learning.check_calibration 發現實戰變差而關閉的運動：拿掉係數 → 退回原始等比例去水
     if "football" in off:
         c.pop("football_1x2", None)
+        c.pop("football_spread", None)
         c["raw_football"] = True
     if "nba" in off:
         c.pop("nba_ml", None)
@@ -247,6 +266,15 @@ def football_1x2_matrix(odds: np.ndarray) -> np.ndarray:
 def two_way(o1, o2) -> float | None:
     p = power_devig([o1, o2])
     return p[0] if p else None
+
+
+def football_spread(odds_home, odds_away) -> float | None:
+    """足球讓分的主隊贏盤機率：power 去水 + 主隊截距（莊家對主隊多抽的部分扣回來）。"""
+    p = two_way(odds_home, odds_away)
+    a = coefs().get("football_spread")
+    if p is None or a is None:
+        return p
+    return float(_sigmoid(a + float(_logit(p))))
 
 
 def nba_ml(c_home, c_away, o_home=None, o_away=None) -> float | None:

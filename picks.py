@@ -91,6 +91,8 @@ def reasons(o: dict, g: dict, m: dict, signal: str | None) -> list[str]:
         dog = "home" if m["sp"] > 0 else "away"
         if o["key"][1] == dog:
             r.append("深盤買受讓方：歷史上比讓球方少虧")
+    if g["sport"] == "football" and o["key"] == ("spread", "away") and raw is not None and o["p_mkt"] - raw >= 0.01:
+        r.append(f"莊家角度：讓球盤主隊常被多抽，客隊這邊校準後 {raw*100:.0f}% → {o['p_mkt']*100:.0f}%（3 季回測都一樣）")
     return r
 
 
@@ -154,6 +156,10 @@ def _parlay_block(t: dict, title: str) -> str:
                      f"   👉 <b>{escape(c['name'])}</b>{star}｜{c['p']*100:.0f}%｜合理 {c['fair']:.2f}（DK {c['odds']:.2f}）")
     lines.append(f"命中率 <b>{t['p']*100:.0f}%</b>｜📌 <b>運彩組合賠率 ≥ {t['fair']:.2f} 才下</b>（DK 組合 {t['odds']:.2f}）")
     lines.append(f"評等：{grade(t['ev'])}（期望值 {t['ev']*100:+.1f}%）")
+    # 賠率 × 等比例去水機率 = 1 /（1 + 抽水），串關時逐關相乘
+    keep = [c["odds"] * (c.get("p_raw") or c["p_mkt"]) for c in t["legs"]]
+    lines.append("🏦 莊家抽水：每關 " + "/".join(f"{(1 - k)*100:.0f}%" for k in keep)
+                 + f" → 整張累積約 <b>{(1 - math.prod(keep))*100:.0f}%</b>（DK；運彩通常更高）")
     return "\n".join(lines)
 
 

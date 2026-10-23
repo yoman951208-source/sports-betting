@@ -6,3 +6,4 @@ __pycache__/
 *.tmp
 worker/node_modules/
 worker/.wrangler/
+research/out/

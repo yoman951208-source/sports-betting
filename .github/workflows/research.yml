@@ -1,0 +1,70 @@
+# 研究用：手動觸發，在雲端跑 research/ 底下的腳本（回測、資料檢查）
+# 結果印在 log 並上傳成 artifact；新下載的歷史資料存進快取（hist-v2-），之後的排程直接沿用
+name: research
+
+on:
+  workflow_dispatch:
+    inputs:
+      script:
+        description: "research/ 底下的腳本名稱（不含 .py）"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      TZ: Asia/Taipei
+      # 腳本名稱只經由環境變數傳入，並先檢查格式（避免指令注入）
+      SCRIPT: ${{ inputs.script }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Check script name
+        run: |
+          [[ "$SCRIPT" =~ ^[a-z0-9_]+$ ]] && [ -f "research/$SCRIPT.py" ] || { echo "腳本名稱不合法：$SCRIPT"; exit 1; }
+
+      - name: Restore history cache
+        uses: actions/cache/restore@v6
+        with:
+          path: data/cache
+          key: hist-none
+          restore-keys: |
+            hist-v2-
+            hist-
+
+      - name: Restore state from data branch
+        run: |
+          mkdir -p data
+          if git fetch -q --depth=1 origin data; then
+            git show FETCH_HEAD:betting.db > data/betting.db
+            git show FETCH_HEAD:strategies.json > data/strategies.json || rm -f data/strategies.json
+          fi
+
+      - name: Run
+        run: python "research/$SCRIPT.py"
+
+      - name: Save history cache
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: data/cache
+          key: hist-v2-r${{ github.run_id }}
+
+      - uses: actions/upload-artifact@v5
+        if: always()
+        with:
+          name: research-output
+          path: research/out/
+          if-no-files-found: ignore

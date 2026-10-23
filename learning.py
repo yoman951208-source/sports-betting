@@ -5,6 +5,8 @@
   shrink（每個運動各一個）—— 估計勝率 = (市場機率 × shrink + 歷史相似盤口機率 × n) / (shrink + n)
     shrink 越大越相信市場。每天用「已結算的預測」試一組 shrink，找讓 log loss 最低的值，
     再往那個方向移動一半（避免小樣本亂跳）。結算樣本不足 MIN_GAMES 場前維持預設值。
+    只能往「更相信市場」調，不會低於預設值（10/23：足球 168 場就把 shrink 學到 157，歷史樣本權重過半，
+    雜訊讓抽水最少的和局一直被選成推薦——14 注推薦裡 10 注是和局、只中 1 注）。
 另外輸出校準表（模型說 60% 的事，實際發生幾成），放在賽後檢討裡。
 """
 from __future__ import annotations
@@ -17,9 +19,9 @@ from datetime import timedelta
 
 from core import db, kv_get, kv_set, log, now_utc, parse_iso
 
-DEFAULT_SHRINK = 600.0
+DEFAULT_SHRINK = 600.0                  # 也是下限：實戰樣本再多也不讓歷史相似盤口的權重超過這個
 MARKET_ONLY = 1e9                       # 等同「完全相信市場」
-GRID = [150, 300, 600, 1200, 2500, 5000, MARKET_ONLY]
+GRID = [600, 1200, 2500, 5000, MARKET_ONLY]
 MIN_GAMES = 120                         # 至少這麼多場已結算才開始調整
 RECORD_WINDOW_HOURS = 3                 # 開賽前幾小時內開始記錄（之後每輪更新，開賽前最後一次為準）
 
@@ -55,7 +57,7 @@ def get_shrink(sport: str) -> float:
             v = kv_get(conn, f"shrink:{sport}")
         finally:
             conn.close()
-        val = float(v) if v else DEFAULT_SHRINK
+        val = max(DEFAULT_SHRINK, float(v)) if v else DEFAULT_SHRINK
     except (sqlite3.Error, ValueError):
         val = DEFAULT_SHRINK
     _cache[sport] = (val, time.time())

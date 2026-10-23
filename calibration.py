@@ -142,6 +142,8 @@ def _fit_nba_form(nba, w_ml: list[float], w_sp: list[float]) -> dict:
        讓分：主力疲勞差、主力缺陣差；不讓分：主力疲勞差。"""
     import data_nba_box
     import nba_form
+    # 只用有開盤的季別（基準機率要用到盤口移動）；舊季別只有收盤，不必下載上萬場 box score
+    nba = nba[nba["season"].isin(nba.loc[nba["o_spread_home"].notna(), "season"].unique())]
     box = data_nba_box.load_boxes(nba["event_id"].astype(str).tolist())
     F = nba_form.game_features(nba, box)
     d = nba.astype({"event_id": str}).merge(F, on="event_id")

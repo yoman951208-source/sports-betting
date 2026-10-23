@@ -7,13 +7,14 @@
 from __future__ import annotations
 
 import math
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 
 import pandas as pd
 
 from config import NBA_SEASONS
-from core import american_to_decimal, get_json, log, parse_line
+from core import CACHE_DIR, american_to_decimal, get_json, log, parse_line
 
 SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard"
 CORE_ODDS = ("https://sports.core.api.espn.com/v2/sports/basketball/leagues/nba/events/{eid}"
@@ -42,27 +43,43 @@ def _line(block: dict | None, key: str) -> float | None:
     return parse_line(v.get("american") or v.get("alternateDisplayValue")) if isinstance(v, dict) else None
 
 
-def parse_core_odds(data: dict | None) -> dict:
-    """解析 core API 的 odds：優先取非 Live 的第一個博彩公司。"""
-    items = [it for it in (data or {}).get("items", []) if "live" not in it.get("provider", {}).get("name", "").lower()]
-    if not items:
-        return {}
-    it = sorted(items, key=lambda x: x.get("provider", {}).get("priority", 99))[0]
+def _market(it: dict, market: str) -> dict:
+    """某家博彩公司某個盤（spread / ml / total）的開盤與收盤。舊季別只有 current（當作收盤）。"""
     h, a = it.get("homeTeamOdds") or {}, it.get("awayTeamOdds") or {}
-    row = {"provider": it.get("provider", {}).get("name")}
+    out = {}
     for tag in ("open", "close"):
         hb = h.get(tag) or (h.get("current") if tag == "close" else None) or {}
         ab = a.get(tag) or (a.get("current") if tag == "close" else None) or {}
         tb = it.get(tag) or (it.get("current") if tag == "close" else None) or {}
         p = tag[0]  # o_ / c_
-        row[f"{p}_spread_home"] = _line(hb, "pointSpread")
-        row[f"{p}_spread_home_odds"] = _price(hb, "spread")
-        row[f"{p}_spread_away_odds"] = _price(ab, "spread")
-        row[f"{p}_ml_home"] = _price(hb, "moneyLine")
-        row[f"{p}_ml_away"] = _price(ab, "moneyLine")
-        row[f"{p}_total"] = _line(tb, "total")
-        row[f"{p}_over_odds"] = _price(tb, "over")
-        row[f"{p}_under_odds"] = _price(tb, "under")
+        if market == "spread":
+            out.update({f"{p}_spread_home": _line(hb, "pointSpread"), f"{p}_spread_home_odds": _price(hb, "spread"),
+                        f"{p}_spread_away_odds": _price(ab, "spread")})
+        elif market == "ml":
+            out.update({f"{p}_ml_home": _price(hb, "moneyLine"), f"{p}_ml_away": _price(ab, "moneyLine")})
+        else:
+            out.update({f"{p}_total": _line(tb, "total"), f"{p}_over_odds": _price(tb, "over"),
+                        f"{p}_under_odds": _price(tb, "under")})
+    return out
+
+
+_MARKET_KEY = {"spread": "spread_home", "ml": "ml_home", "total": "total"}
+
+
+def parse_core_odds(data: dict | None) -> dict:
+    """解析 core API 的 odds（不含 Live）。每個盤各自挑博彩公司：優先順序最高、有收盤的那家；
+    那家沒有開盤時改用同時有開盤與收盤的下一家 —— 開盤與收盤一定來自同一家，盤口變化才不會失真
+    （10/23：舊季別常常只有部分公司有某個盤，例如 MLB 2023 的 Bet365 沒有不讓分）。"""
+    items = [it for it in (data or {}).get("items", []) if "live" not in it.get("provider", {}).get("name", "").lower()]
+    if not items:
+        return {}
+    items = sorted(items, key=lambda x: x.get("provider", {}).get("priority", 99))
+    row = {"provider": items[0].get("provider", {}).get("name")}
+    for market, key in _MARKET_KEY.items():
+        cands = [_market(it, market) for it in items]
+        closed = [c for c in cands if c.get(f"c_{key}") is not None]
+        both = [c for c in closed if c.get(f"o_{key}") is not None]
+        row.update(both[0] if both else closed[0] if closed else cands[0])
     return row
 
 
@@ -77,36 +94,64 @@ def _odds(eid: str) -> dict:
     return parse_core_odds(get_json(CORE_ODDS.format(eid=eid), cache_name=f"nba/odds_{eid}.json"))
 
 
-def load_history() -> pd.DataFrame:
-    games = []
-    for season, start, end in NBA_SEASONS:
-        days = list(_dates(start, end))
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            boards = list(pool.map(_scoreboard, days))
-        for d, sb in zip(days, boards):
-            for ev in (sb or {}).get("events", []):
-                if ev.get("season", {}).get("type") not in (2, 3):  # 2=例行賽 3=季後賽
-                    continue
-                comp = ev["competitions"][0]
-                if not comp.get("status", {}).get("type", {}).get("completed"):
-                    continue
-                teams = {c["homeAway"]: c for c in comp["competitors"]}
-                if "home" not in teams or "away" not in teams:
-                    continue
-                try:
-                    hs, as_ = int(teams["home"]["score"]), int(teams["away"]["score"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-                games.append({
-                    "event_id": ev["id"], "season": season, "game_date": pd.Timestamp(d),
-                    "playoffs": ev["season"]["type"] == 3,
-                    "home": teams["home"]["team"]["abbreviation"], "away": teams["away"]["team"]["abbreviation"],
-                    "home_score": hs, "away_score": as_,
-                })
-    log.info("NBA 賽程：%d 場，開始抓取盤口…", len(games))
+def _season_games(season: str, start: str, end: str) -> list[dict]:
+    days = list(_dates(start, end))
     with ThreadPoolExecutor(max_workers=8) as pool:
-        odds = list(pool.map(lambda g: _odds(g["event_id"]), games))
+        boards = list(pool.map(_scoreboard, days))
+    games = []
+    for d, sb in zip(days, boards):
+        for ev in (sb or {}).get("events", []):
+            if ev.get("season", {}).get("type") not in (2, 3):  # 2=例行賽 3=季後賽
+                continue
+            comp = ev["competitions"][0]
+            if not comp.get("status", {}).get("type", {}).get("completed"):
+                continue
+            teams = {c["homeAway"]: c for c in comp["competitors"]}
+            if "home" not in teams or "away" not in teams:
+                continue
+            try:
+                hs, as_ = int(teams["home"]["score"]), int(teams["away"]["score"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            games.append({
+                "event_id": ev["id"], "season": season, "game_date": pd.Timestamp(d),
+                "playoffs": ev["season"]["type"] == 3,
+                "home": teams["home"]["team"]["abbreviation"], "away": teams["away"]["team"]["abbreviation"],
+                "home_score": hs, "away_score": as_,
+            })
+    return games
+
+
+def season_frame(sport: str, season: str, start: str, end: str, games_fn, odds_fn) -> pd.DataFrame:
+    """一季的賽程 + 盤口。已結束的季別整季存成一個 CSV（之後不用再解析上千個 JSON），MLB 也共用。
+    檔名帶 PARSED_VERSION：parse_core_odds 改了就把版本加 1，舊的整季檔自動不用。"""
+    path = CACHE_DIR / sport / f"season_{season}_v{PARSED_VERSION}.csv"
+    done = date.fromisoformat(end) < date.today() - timedelta(days=3)
+    if done and path.exists():
+        return pd.read_csv(path, dtype={"event_id": str, "season": str, "home": str, "away": str, "provider": str},
+                           keep_default_na=False, na_values=[""], parse_dates=["game_date"])
+    games = games_fn(season, start, end)
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        odds = list(pool.map(lambda g: odds_fn(g["event_id"]), games))
     df = pd.DataFrame([{**g, **o} for g, o in zip(games, odds)])
+    if done and len(df):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(path, index=False)
+    return df
+
+
+PARSED_VERSION = 2
+_MEMO: tuple[pd.DataFrame, float] | None = None
+
+
+def load_history() -> pd.DataFrame:
+    """所有 NBA_SEASONS 的已完賽比賽與盤口。同一個程式 10 分鐘內重複呼叫直接回傳記憶體裡的副本。"""
+    global _MEMO
+    if _MEMO and time.time() - _MEMO[1] < 600:
+        return _MEMO[0].copy()
+    frames = [season_frame("nba", s, a, b, _season_games, _odds) for s, a, b in NBA_SEASONS]
+    df = pd.concat([f for f in frames if len(f)], ignore_index=True)
+    log.info("NBA 賽程：%d 場（%d 季）", len(df), len(NBA_SEASONS))
     df = df.sort_values(["game_date", "event_id"]).reset_index(drop=True)
     df = clean(df)
     df = add_rest_days(df)
@@ -114,8 +159,9 @@ def load_history() -> pd.DataFrame:
     df["total_base"] = df["c_total"].rolling(150, min_periods=50).mean().shift(1)
     df["total_rel"] = df["c_total"] - df["total_base"]
     have = df["c_spread_home"].notna().sum()
-    log.info("NBA 歷史資料：%d 場（有收盤讓分 %d 場）", len(df), have)
-    return df
+    log.info("NBA 歷史資料：%d 場（有收盤讓分 %d 場、有開盤讓分 %d 場）", len(df), have, int(df["o_spread_home"].notna().sum()))
+    _MEMO = (df, time.time())
+    return df.copy()
 
 
 def _spread_prob(spread: float) -> float:

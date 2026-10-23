@@ -5,13 +5,14 @@
 """
 from __future__ import annotations
 
+import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 import pandas as pd
 
 from core import get_json, log
-from data_nba import parse_core_odds
+from data_nba import parse_core_odds, season_frame
 
 SCOREBOARD = "https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/scoreboard"
 CORE_ODDS = ("https://sports.core.api.espn.com/v2/sports/baseball/leagues/mlb/events/{eid}"
@@ -43,34 +44,43 @@ def _odds(eid: str) -> dict:
     return parse_core_odds(get_json(CORE_ODDS.format(eid=eid), cache_name=f"mlb/odds_{eid}.json"))
 
 
-def load_history() -> pd.DataFrame:
-    games = []
-    for season, start, end in MLB_SEASONS:
-        days = list(_dates(start, end))
-        with ThreadPoolExecutor(max_workers=8) as pool:
-            boards = list(pool.map(_scoreboard, days))
-        for d, sb in zip(days, boards):
-            for ev in (sb or {}).get("events", []):
-                stype = ev.get("season", {}).get("type")
-                if stype not in (2, 3):
-                    continue
-                comp = ev["competitions"][0]
-                if not comp.get("status", {}).get("type", {}).get("completed"):
-                    continue
-                teams = {c["homeAway"]: c for c in comp["competitors"]}
-                try:
-                    hs, as_ = int(teams["home"]["score"]), int(teams["away"]["score"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-                games.append({
-                    "event_id": ev["id"], "season": season, "game_date": pd.Timestamp(d), "playoffs": stype == 3,
-                    "home": teams["home"]["team"]["abbreviation"], "away": teams["away"]["team"]["abbreviation"],
-                    "home_score": hs, "away_score": as_,
-                })
-    log.info("MLB 賽程：%d 場，開始抓取盤口…", len(games))
+def _season_games(season: str, start: str, end: str) -> list[dict]:
+    days = list(_dates(start, end))
     with ThreadPoolExecutor(max_workers=8) as pool:
-        odds = list(pool.map(lambda g: _odds(g["event_id"]), games))
-    df = pd.DataFrame([{**g, **o} for g, o in zip(games, odds)])
+        boards = list(pool.map(_scoreboard, days))
+    games = []
+    for d, sb in zip(days, boards):
+        for ev in (sb or {}).get("events", []):
+            stype = ev.get("season", {}).get("type")
+            if stype not in (2, 3):
+                continue
+            comp = ev["competitions"][0]
+            if not comp.get("status", {}).get("type", {}).get("completed"):
+                continue
+            teams = {c["homeAway"]: c for c in comp["competitors"]}
+            try:
+                hs, as_ = int(teams["home"]["score"]), int(teams["away"]["score"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            games.append({
+                "event_id": ev["id"], "season": season, "game_date": pd.Timestamp(d), "playoffs": stype == 3,
+                "home": teams["home"]["team"]["abbreviation"], "away": teams["away"]["team"]["abbreviation"],
+                "home_score": hs, "away_score": as_,
+            })
+    return games
+
+
+_MEMO: tuple[pd.DataFrame, float] | None = None
+
+
+def load_history() -> pd.DataFrame:
+    """所有 MLB_SEASONS 的已完賽比賽與盤口（已結束的季別讀整季 CSV；10 分鐘內重複呼叫用記憶體副本）。"""
+    global _MEMO
+    if _MEMO and time.time() - _MEMO[1] < 600:
+        return _MEMO[0].copy()
+    frames = [season_frame("mlb", s, a, b, _season_games, _odds) for s, a, b in MLB_SEASONS]
+    df = pd.concat([f for f in frames if len(f)], ignore_index=True)
+    log.info("MLB 賽程：%d 場（%d 季）", len(df), len(MLB_SEASONS))
     df = df.drop_duplicates("event_id").sort_values(["game_date", "event_id"]).reset_index(drop=True)
     # 清掉抽水不合理的不讓分賠率（ESPN 少數開盤資料有誤）
     for p in ("o", "c"):
@@ -79,7 +89,8 @@ def load_history() -> pd.DataFrame:
         df.loc[bad, [f"{p}_ml_home", f"{p}_ml_away"]] = float("nan")
     log.info("MLB 歷史資料：%d 場（有收盤不讓分 %d 場，季後賽 %d 場）",
              len(df), int(df["c_ml_home"].notna().sum()), int(df["playoffs"].sum()))
-    return df
+    _MEMO = (df, time.time())
+    return df.copy()
 
 
 if __name__ == "__main__":

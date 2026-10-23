@@ -2,9 +2,9 @@
 """今日最推薦：掃描所有比賽（足球 / NBA / MLB）的所有選項，給出最推薦的單關、二串一、三串一。
 
 排序依據（都來自前面驗證過的模型與資料）：
-  1. 期望值 EV = 估計勝率 × DK 賠率 − 1（估計勝率 = 校準後市場機率 + 歷史相似盤口 + 球員狀態）
+  1. 期望值 EV = 估計勝率 × DK 賠率 − 1（估計勝率 = 校準後市場機率 + 球員狀態；⭐ 訊號成立時加上回測的 uplift）
   2. 只考慮賠率 1.20–4.50（10/19 分析：高賠率冷門長期虧最多）
-  3. 通過兩年回測的訊號（⭐）額外加分
+  3. 通過歷史回測的訊號（⭐）額外加分
 評等：🟢 推薦（EV ≥ +2%）／🟡 接近公平（−2% ~ +2%）／🔴 偏貴（< −2%，只是「最不虧」）
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ import ui
 from analyze import game_model, game_title, upcoming
 from backtest import load_strategies
 from core import db
-from strategies import no_vig2, no_vig3, trigger
+from strategies import no_vig2
 
 SINGLE_ODDS = (1.20, 4.50)
 LEG_ODDS = (1.25, 2.60)       # 串關每關：太高的冷門會讓整張命中率掉太多
@@ -31,24 +31,15 @@ ICON = {"football": "⚽", "nba": "🏀", "mlb": "⚾"}
 grade = ui.grade
 
 
-def _signals(g: dict, strats) -> dict[tuple, str]:
-    """這場比賽觸發的 ⭐ 回測訊號 → {(市場, 選項): 策略說明}"""
-    out = {}
-    enabled = [s for s in strats if s.enabled and s.sport == g["sport"] and s.live_source == "espn"]
-    if not enabled:
-        return out
+def _signals(g: dict, m: dict, strats) -> None:
+    """⭐ 回測訊號成立的選項：估計勝率加上回測的 uplift（analyze.apply_signals，和單場分析一致）。"""
+    from analyze import apply_signals
     conn = db()
     try:
         f = live.features(conn, g, {})
     finally:
         conn.close()
-    for s in enabled:
-        t = trigger(s, f)
-        if not t:
-            continue
-        market = {"ou25": "total", "ah": "spread"}.get(s.market, s.market)
-        out[(market, t[0])] = s.title
-    return out
+    apply_signals(g, m, strats, f)
 
 
 def _open_prob(o: dict, g: dict, m: dict) -> float | None:
@@ -67,9 +58,7 @@ def reasons(o: dict, g: dict, m: dict, signal: str | None) -> list[str]:
     ev = o["ev"]
     r.append(f"DK 賠率高於合理價（期望值 {ev*100:+.1f}%）" if ev > 0 else f"在所有選項中最接近公平價（期望值 {ev*100:+.1f}%）")
     if signal:
-        r.append(f"⭐ 通過兩年回測的訊號：{signal}")
-    if o.get("p_hist") is not None and o.get("n", 0) >= 100 and o["p_hist"] - o["p_mkt"] >= 0.02:
-        r.append(f"歷史 {o['n']} 場相似盤口實際 {o['p_hist']*100:.0f}%，比市場的 {o['p_mkt']*100:.0f}% 高")
+        r.append(f"⭐ 通過歷史回測的訊號：{signal}（回測勝率比市場高 {(o['p'] - o['p_mkt'])*100:.1f}pp）")
     po = _open_prob(o, g, m)
     if po is not None and o["p_mkt"] - po >= 0.03:
         r.append(f"資金往這邊：開盤 {po*100:.0f}% → 現在 {o['p_mkt']*100:.0f}%")
@@ -81,14 +70,14 @@ def reasons(o: dict, g: dict, m: dict, signal: str | None) -> list[str]:
     raw = o.get("p_raw")
     if raw is not None and o["p_mkt"] - raw >= 0.01 and g["sport"] == "football" and o["key"][0] == "1x2":
         r.append(f"冷熱門校準：原始 {raw*100:.0f}% → 校準後 {o['p_mkt']*100:.0f}%（熱門通常被低估）")
-    if 1.20 <= o["odds"] <= 1.80:
-        r.append("賠率在 1.2–1.8：歷史上長期最不虧的區間")
+    if o["odds"] < 1.50:
+        r.append("賠率低於 1.5：抽水最輕的區間（8 季回測約 −2.6%，5 倍以上冷門約 −17%）")
     if g["sport"] == "football" and o["key"][0] == "spread" and m.get("sp") is not None and abs(m["sp"]) >= 1.5:
         dog = "home" if m["sp"] > 0 else "away"
         if o["key"][1] == dog:
             r.append("深盤買受讓方：歷史上比讓球方少虧")
     if g["sport"] == "football" and o["key"] == ("spread", "away") and raw is not None and o["p_mkt"] - raw >= 0.01:
-        r.append(f"莊家角度：讓球盤主隊常被多抽，客隊這邊校準後 {raw*100:.0f}% → {o['p_mkt']*100:.0f}%（3 季回測都一樣）")
+        r.append(f"莊家角度：讓球盤主隊常被多抽，客隊這邊校準後 {raw*100:.0f}% → {o['p_mkt']*100:.0f}%（8 季回測中 7 季都一樣）")
     return r
 
 
@@ -104,11 +93,11 @@ def candidates(games: list[dict], hours: float) -> list[dict]:
             continue
         if not m:
             continue
-        sig = _signals(g, strats)
+        _signals(g, m, strats)
         for o in m["options"]:
             if not SINGLE_ODDS[0] <= o["odds"] <= SINGLE_ODDS[1]:
                 continue
-            s = sig.get(o["key"])
+            s = o.get("signal")
             out.append({**o, "g": g, "m": m, "signal": s, "score": o["ev"] + (SIGNAL_BONUS if s else 0)})
     return sorted(out, key=lambda x: (-x["score"], -x["p"]))
 

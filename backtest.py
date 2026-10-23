@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""兩年歷史回測：找出「盤口變化 / 各家賠率差 / 球員休息」中真的有優勢的規律。
+"""歷史回測（足球 2019-20 起、NBA 2016-17 起、MLB 2019 起）：找出「盤口變化 / 各家賠率差 / 球員休息」中真的有優勢的規律。
 
 篩選原則（config.py 可調）：
   1. 樣本數夠大（足球 ≥150 注、NBA ≥80 注）
@@ -298,7 +298,7 @@ def _line(s: Strategy) -> str:
 
 def telegram_report(strats: list[Strategy], meta: dict) -> str:
     from html import escape
-    lines = ["<b>📊 兩年回測報告</b>",
+    lines = ["<b>📊 歷史回測報告</b>",
              f"足球 {meta['football_games']} 場（{meta['football_range'][0]}~{meta['football_range'][1]}）",
              f"NBA {meta['nba_games']} 場（{meta['nba_range'][0]}~{meta['nba_range'][1]}）"]
     if meta.get("mlb_games"):
@@ -312,7 +312,7 @@ def telegram_report(strats: list[Strategy], meta: dict) -> str:
         en = sorted([s for s in strats if s.sport == sport and s.enabled], key=lambda s: -s.stats["t"])
         weak = sorted([s for s in strats if s.sport == sport and s.weak], key=lambda s: -s.stats["t"])[:4]
         lines.append(f"\n{icon} <b>⭐ 通過檢驗、會即時推播</b>（{len(en)}）")
-        lines += [escape(_line(s)) for s in en] or ["（無 —— 兩年資料中沒有找到穩定的優勢）"]
+        lines += [escape(_line(s)) for s in en] or ["（無 —— 歷史資料中沒有找到穩定的優勢）"]
         if weak:
             lines.append(f"{icon} <b>參考（正報酬但不夠顯著）</b>")
             lines += [escape(_line(s)) for s in weak]

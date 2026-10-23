@@ -44,7 +44,9 @@ jobs:
         with:
           path: data/cache
           key: hist-none
-          restore-keys: hist-
+          restore-keys: |
+            hist-v2-
+            hist-
 
       - name: Restore state from data branch
         run: |

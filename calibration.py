@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
-"""市場機率的校準層（2026-10-19 加入）。
+"""市場機率的校準層（2026-10-19 加入，10/23 用更多季別重新驗證後精簡）。
 
 做法：
-  1. 去水改用 power 方法（找 k 使 Σ(1/賠率)^k = 1）—— 等比例去水會高估冷門
-  2. 在 logit 尺度上做邏輯迴歸校準：logit(p真) = a + b·logit(p市場) + 其他特徵
-只採用「一季訓練、另一季測試」每次都比原始市場準的組合（樣本外驗證，見 10/19 評估）：
-  足球 1X2  ：logit(p)、是否和局、logit(p)×和局          （3 個測試季都改善）
-  NBA 不讓分：logit(p)、開盤→收盤的 logit 變化          （2 季都改善；資金方向在收盤後仍有資訊）
-  NBA 讓分  ：logit(p)、讓分移動（主隊被買為正，單位：分）（2 季都改善）
-  足球讓分  ：只加截距（斜率固定 1）—— 莊家在讓球盤對主隊多抽，主隊實際贏盤率比去水機率低約 1.6–2.3pp
-              （10/23「莊家角度」評估：3 個測試季都改善；估斜率反而不穩，所以只估截距）
-  其餘（MLB、所有大小分）：校準在樣本外變差 → 維持原始市場機率（足球大小只換成 power 去水）
-係數每週隨回測重新估計，存在資料庫 kv「calibration」（雲端與本機會一起同步）。
+  1. 去水用 power 方法（找 k 使 Σ(1/賠率)^k = 1）—— 等比例去水會高估冷門（足球 8 季中 7 季較準）
+  2. 只保留「逐季留一」（用其他季別估計、在沒看過的那季測試）每一季都比原始市場準的修正：
+     足球讓分：只加截距（斜率固定 1）—— 莊家在讓球盤對主隊多抽，主隊實際贏盤率比去水機率低約 2pp
+               （8 季中 7 季改善）
+     NBA 讓分：主力缺陣差、主力疲勞差（有開盤的 3 季都改善）
+10/23 拿掉的（原本只用 2–3 季驗證，季別變多後就不穩）：
+  足球勝平負的 logit／和局校準（8 季只有 4 季改善）、NBA 不讓分加盤口變化（3 季 1 季）、
+  NBA 讓分加讓分移動（3 季 2 季）、NBA 不讓分加主力疲勞（3 季 2 季）。MLB、所有大小分本來就不校準。
+係數每週隨回測重新估計，存在資料庫 kv「calibration」。CAL_VERSION 改了雲端會自動重估。
 """
 from __future__ import annotations
 
@@ -95,20 +94,14 @@ def _fit_intercept(lp: np.ndarray, y: np.ndarray) -> float:
     return round(a, 5)
 
 
+CAL_VERSION = 3        # 10/23：季別變多後重新驗證、拿掉不穩的校準
+
+
 def fit_all() -> dict:
-    import pandas as pd
     import data_football
     import data_nba
-    out: dict = {"fitted": time.strftime("%Y-%m-%d %H:%M")}
-    fb = data_football.load_history().dropna(subset=["c_avg_h", "c_avg_d", "c_avg_a"])
-    pc = _power_matrix(fb[["c_avg_h", "c_avg_d", "c_avg_a"]].to_numpy(float))
-    X, y = [], []
-    for k, lab in enumerate("HDA"):
-        lp = _logit(pc[:, k])
-        draw = np.full(len(fb), float(lab == "D"))
-        X.append(np.column_stack([lp, draw, lp * draw]))
-        y.append((fb["ftr"] == lab).to_numpy(float))
-    out["football_1x2"] = _fit(np.vstack(X), np.concatenate(y))
+    out: dict = {"fitted": time.strftime("%Y-%m-%d %H:%M"), "version": CAL_VERSION}
+    fb = data_football.load_history()
     # 讓球：只用整數 / 半球盤（DK 的足球讓分都是半球盤；四分之一盤會半贏半輸，不能當成輸贏二元）
     ah = fb.dropna(subset=["c_ah_line", "c_ah_h", "c_ah_a"])
     ah = ah[(ah["c_ah_line"] * 2) % 1 == 0]
@@ -116,55 +109,30 @@ def fit_all() -> dict:
     ah, m = ah[m != 0], m[m != 0]
     lp = _logit(_power_matrix(ah[["c_ah_h", "c_ah_a"]].to_numpy(float))[:, 0])
     out["football_spread"] = _fit_intercept(lp, (m > 0).to_numpy(float))
-
-    nba = data_nba.load_history()
-    ml = nba.dropna(subset=["c_ml_home", "c_ml_away", "o_ml_home", "o_ml_away"])
-    pc = _power_matrix(ml[["c_ml_home", "c_ml_away"]].to_numpy(float))[:, 0]
-    po = _power_matrix(ml[["o_ml_home", "o_ml_away"]].to_numpy(float))[:, 0]
-    out["nba_ml"] = _fit(np.column_stack([_logit(pc), _logit(pc) - _logit(po)]),
-                         (ml["home_score"] > ml["away_score"]).to_numpy(float))
-    sp = nba.dropna(subset=["c_spread_home", "o_spread_home"])
-    m = sp["home_score"] - sp["away_score"] + sp["c_spread_home"]
-    sp, m = sp[m != 0], m[m != 0]
-    ps = _power_matrix(sp[["c_spread_home_odds", "c_spread_away_odds"]].fillna(1.91).to_numpy(float))[:, 0]
-    dsp = -(sp["c_spread_home"] - sp["o_spread_home"]).to_numpy(float)
-    out["nba_spread"] = _fit(np.column_stack([_logit(ps), dsp]), (m > 0).to_numpy(float))
-    out["n"] = {"football": int(len(fb)), "football_spread": int(len(ah)), "nba_ml": int(len(ml)), "nba_spread": int(len(sp))}
+    out["n"] = {"football_spread": int(len(ah))}
     try:
-        out.update(_fit_nba_form(nba, out["nba_ml"], out["nba_spread"]))
+        out.update(_fit_nba_form(data_nba.load_history()))
     except Exception:  # box score 抓不到時不影響其他校準
         log.exception("NBA 球員狀態校準失敗")
     return out
 
 
-def _fit_nba_form(nba, w_ml: list[float], w_sp: list[float]) -> dict:
-    """在「校準後市場機率」之上加球員狀態（10/19 樣本外驗證：兩季都改善、方向一致的才用）：
-       讓分：主力疲勞差、主力缺陣差；不讓分：主力疲勞差。"""
+def _fit_nba_form(nba) -> dict:
+    """NBA 讓分：power 去水之上加主力缺陣差、主力疲勞差（10/23：有開盤的 3 季逐季留一都改善）。"""
     import data_nba_box
     import nba_form
-    # 只用有開盤的季別（基準機率要用到盤口移動）；舊季別只有收盤，不必下載上萬場 box score
+    # 只用近幾季（有開盤、box score 已在快取）；舊季別只有收盤，不必下載上萬場 box score
     nba = nba[nba["season"].isin(nba.loc[nba["o_spread_home"].notna(), "season"].unique())]
     box = data_nba_box.load_boxes(nba["event_id"].astype(str).tolist())
     F = nba_form.game_features(nba, box)
     d = nba.astype({"event_id": str}).merge(F, on="event_id")
     d = d[(d["h_n_prior"] >= 10) & (d["a_n_prior"] >= 10)]
-    out = {}
-    s = d.dropna(subset=["c_spread_home", "o_spread_home"])
+    s = d.dropna(subset=["c_spread_home"])
     m = s["home_score"] - s["away_score"] + s["c_spread_home"]
     s, m = s[m != 0], m[m != 0]
     ps = _power_matrix(s[["c_spread_home_odds", "c_spread_away_odds"]].fillna(1.91).to_numpy(float))[:, 0]
-    dsp = -(s["c_spread_home"] - s["o_spread_home"]).to_numpy(float)
-    base = _logit(_sigmoid(w_sp[0] + w_sp[1] * _logit(ps) + w_sp[2] * dsp))
-    X = np.column_stack([base, s["d_star_out"].fillna(0), s["d_star_load"].fillna(0)])
-    out["nba_form_spread"] = _fit(X, (m > 0).to_numpy(float))
-    ml = d.dropna(subset=["c_ml_home", "c_ml_away", "o_ml_home", "o_ml_away"])
-    pc = _power_matrix(ml[["c_ml_home", "c_ml_away"]].to_numpy(float))[:, 0]
-    po = _power_matrix(ml[["o_ml_home", "o_ml_away"]].to_numpy(float))[:, 0]
-    base = _logit(_sigmoid(w_ml[0] + w_ml[1] * _logit(pc) + w_ml[2] * (_logit(pc) - _logit(po))))
-    X = np.column_stack([base, ml["d_star_load"].fillna(0)])
-    out["nba_form_ml"] = _fit(X, (ml["home_score"] > ml["away_score"]).to_numpy(float))
-    out["n_nba_form"] = int(len(s))
-    return out
+    X = np.column_stack([_logit(ps), s["d_star_out"].fillna(0), s["d_star_load"].fillna(0)])
+    return {"nba_form_spread": _fit(X, (m > 0).to_numpy(float)), "n_nba_form": int(len(s))}
 
 
 def nba_form_adjust(p: float | None, kind: str, d_star_out: float | None = None,

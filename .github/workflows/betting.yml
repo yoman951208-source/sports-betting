@@ -41,8 +41,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: data/cache
-          key: hist-${{ steps.day.outputs.d }}
-          restore-keys: hist-
+          key: hist-v2-${{ steps.day.outputs.d }}
+          # v2（10/23）：歷史資料多了更早的季別；先找 research.yml 下載好的 hist-v2-，沒有才用舊的
+          restore-keys: |
+            hist-v2-
+            hist-
 
       - name: Restore state from data branch
         run: |

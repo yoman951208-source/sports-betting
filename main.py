@@ -3,7 +3,7 @@
 運彩分析機器人（足球 + NBA）→ Telegram
 =====================================
 
-  python main.py backtest [--send]     下載兩年歷史資料並回測，--send 把報告發到 Telegram
+  python main.py backtest [--send]     下載歷史資料並回測，--send 把報告發到 Telegram
   python main.py run [--dry-run]       跑一輪即時監控（抓盤口、找訊號、傷兵、結算）
   python main.py digest [--dry-run]    立即發送每日賽事總覽
   python main.py report [--dry-run]    立即發送實戰成績
@@ -42,10 +42,12 @@ def cmd_backtest(send: bool, dry_run: bool) -> None:
         import calibration
         safe(calibration.refit)  # 市場機率校準層也每週用最新資料重新估計
     if not send and old and old != new:
+        from html import escape
+        title = {s.sid: s.title for s in strats}
         added, removed = new - old, old - new
-        send_telegram("🔄 <b>每週重新回測：啟用策略有變動</b>\n"
-                      + "".join(f"➕ {sid}\n" for sid in sorted(added))
-                      + "".join(f"➖ {sid}\n" for sid in sorted(removed)), dry_run=dry_run)
+        send_telegram("🔄 <b>重新回測：通過回測（⭐）的策略有變動</b>\n"
+                      + "".join(f"➕ 新啟用：{escape(title.get(sid, sid))}\n" for sid in sorted(added))
+                      + "".join(f"➖ 改成只參考：{escape(title.get(sid, sid))}\n" for sid in sorted(removed)), dry_run=dry_run)
 
 
 def cmd_strategies() -> None:
@@ -161,19 +163,31 @@ def daily_jobs() -> list[tuple[str, int | None, int, object]]:
     ]
 
 
+def _backtest_stale() -> bool:
+    """策略檔是用比現在設定更少的季別回測的（例如 10/23 把歷史往前加了好幾季）→ 不用等到週一，馬上重跑。"""
+    import json
+    try:
+        meta = json.loads(STRATEGY_FILE.read_text(encoding="utf-8"))["meta"]
+        first_fb = "20" + config.FOOTBALL_SEASONS[0][:2]
+        first_nba = config.NBA_SEASONS[0][1][:4]
+        return meta["football_range"][0][:4] > first_fb or meta["nba_range"][0][:4] > first_nba
+    except (OSError, KeyError, ValueError, IndexError):
+        return False
+
+
 def cloud_once() -> None:
     """雲端（GitHub Actions）每次執行：一輪監控 + 到期的每日工作。狀態由 workflow 存回 data 分支。"""
     import calibration
     import live
     from core import kv_get
-    if not STRATEGY_FILE.exists():
-        safe(cmd_backtest, False, False)
+    if not STRATEGY_FILE.exists() or _backtest_stale():
+        safe(cmd_backtest, False, False)      # 回測完會順便重估校準
     conn = db()
     try:
         cal = kv_get(conn, "calibration") or ""
     finally:
         conn.close()
-    if "football_spread" not in cal:   # 沒有校準、或還沒有最新加入的係數（10/23 足球讓分主隊截距）→ 重新估計
+    if f'"version": {calibration.CAL_VERSION}' not in cal:   # 沒有校準、或校準方法改過 → 重新估計
         safe(calibration.refit)
     safe(live.run_cycle)
     run_due_jobs(daily_jobs())

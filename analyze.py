@@ -3,7 +3,7 @@
 
 每場會看：
   1. 盤口（DraftKings 開盤 → 現在）的勝平負、讓分、大小，換算成去水機率與「合理賠率」
-  2. 盤口變化 → 對照兩年回測中「同樣幅度的變化」跟進/反向的實際報酬
+  2. 盤口變化 → 對照歷史回測中「同樣幅度的變化」跟進/反向的實際報酬
   3. 歷史相似盤口：找勝平負機率 + 大小球機率都接近的歷史比賽（讓分 × 大小交叉），看實際賽果
   4. 近況、積分（足球）、休息天數與主力傷兵（NBA）
   5. 綜合估計勝率 = 市場機率與歷史相似盤口的加權（大幅偏向市場，避免小樣本雜訊）
@@ -23,7 +23,7 @@ from backtest import load_strategies
 from core import get_json, log, now_utc, parse_iso, to_tpe
 from strategies import Strategy, lam_from_over, no_vig2, no_vig3, p_over, settle_handicap, trigger
 
-SHRINK = 600          # 歷史樣本要多大才跟市場一樣重要（越大越相信市場）
+SHRINK = 1e9          # 只用市場機率；歷史相似盤口只當參考（10/23：8–11 季回測加權沒有幫助，見 learning.py）
 MIN_EDGE = 0.02       # 綜合期望值 ≥ 2% 才列為「可考慮」
 
 FOOTBALL_ZH = {
@@ -117,9 +117,9 @@ def football_analogs(pH: float, pA: float, pO: float | None) -> pd.DataFrame:
 # 共用：選項評估
 # =============================================================================
 def blend(p_mkt: float, p_hist: float | None, n: int, shrink: float | None = None) -> float:
-    """市場機率與歷史相似盤口加權；shrink 越大越相信市場（由 learning.py 依實戰結果每天調整）。"""
+    """市場機率與歷史相似盤口加權；shrink 越大越相信市場（10/23 起 learning.get_shrink 一律只用市場）。"""
     shrink = SHRINK if shrink is None else shrink
-    if p_hist is None or n == 0 or shrink == float("inf"):
+    if p_hist is None or n == 0 or shrink >= 1e9:
         return p_mkt
     return (p_mkt * shrink + p_hist * n) / (shrink + n)
 
@@ -137,6 +137,31 @@ def option_rows(options: list[dict], sport: str | None = None) -> tuple[list[str
         if best is None or o["ev"] > best["ev"]:
             best = o
     return [ui.options_table(options, best)], best
+
+
+def apply_signals(g: dict, m: dict | None, strats: list[Strategy], f: dict) -> list[str]:
+    """回測訊號：⭐（通過回測）成立時，把回測量到的「實際勝率比市場高多少」（uplift）加到那個選項，
+    跟即時推播的算法一致，再重新挑最佳選項。☆（參考）只顯示、不調整。回傳要顯示的訊號文字。"""
+    out = []
+    for s in strats:
+        if s.sport != g["sport"] or s.live_source != "espn" or not (s.enabled or s.weak):
+            continue
+        t = trigger(s, f)
+        if not t:
+            continue
+        out.append(f"🔔 {'⭐' if s.enabled else '☆'}{escape(s.title)}")
+        if not (s.enabled and m):
+            continue
+        key = ({"ou25": "total", "ah": "spread"}.get(s.market, s.market), t[0])
+        o = next((x for x in m["options"] if x["key"] == key), None)
+        up = s.stats.get("uplift", 0.0)
+        if o is not None and up > 0 and o["p_mkt"] + up > o["p"]:
+            p = min(0.97, o["p_mkt"] + up)
+            o.update(p=p, ev=p * o["odds"] - 1, fair=1 / p, signal=s.title)
+    if m and m["options"]:
+        m["best"] = max(m["options"], key=lambda x: x["ev"])
+        m["rows"] = [ui.options_table(m["options"], m["best"])]
+    return out
 
 
 def compose(head: list[str], m: dict | None, signals: list[str], info: list[str]) -> str:
@@ -380,7 +405,7 @@ def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]
         lines.append(f"📈 大2.5 {d*100:+.1f}pp → {_move_verdict(strats, 'fb_ou', d)}")
 
     if n:
-        lines.append(f"<b>歷史相似盤口</b>（{n} 場，11 個聯賽 2024–26）")
+        lines.append(f"<b>歷史相似盤口</b>（{n} 場，11 個聯賽 2019–26）")
         lines.append(f"  主勝 {hist['H']*100:.0f}%｜和 {hist['D']*100:.0f}%｜客勝 {hist['A']*100:.0f}%｜"
                      f"大2.5 {hist['over25']*100:.0f}%｜平均 {hist['goals']:.2f} 球"
                      + (f"｜主 {sp:+g} 贏盤 {hist['cover']*100:.0f}%" if hist.get("cover") is not None else ""))
@@ -391,9 +416,7 @@ def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]
         f = live.features(conn, g, {})
     finally:
         conn.close()
-    sig = [("⭐" if s.enabled else "☆") + s.title for s in strats
-           if s.sport == "football" and s.live_source == "espn" and (s.enabled or s.weak) and trigger(s, f)]
-    return compose(head, m, [f"🔔 {escape(x)}" for x in sig], lines), m["best"]
+    return compose(head, m, apply_signals(g, m, strats, f), lines), m["best"]
 
 
 # =============================================================================
@@ -439,9 +462,7 @@ def analyze_nba(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
         lines.append(f"<b>歷史相似盤口</b>（讓分±1、大小±6，{m['n']} 場）")
         pct = lambda k: f"{hist[k]*100:.0f}%" if hist.get(k) is not None else "-"
         lines.append(f"  主隊贏盤 {pct('cover')}｜大分 {pct('over')}｜主勝（校正後）{pct('win')}")
-    sig = [("⭐" if s.enabled else "☆") + s.title for s in strats
-           if s.sport == "nba" and s.live_source == "espn" and (s.enabled or s.weak) and trigger(s, f)]
-    return compose(head, m, [f"🔔 {escape(x)}" for x in sig], lines), m["best"]
+    return compose(head, m, apply_signals(g, m, strats, f), lines), m["best"]
 
 
 def nba_form_lines(g: dict, m: dict) -> list[str]:
@@ -473,7 +494,8 @@ def nba_form_lines(g: dict, m: dict) -> list[str]:
     adj = []
     if form.get("d_star_load") is not None and m.get("p_sp") is not None and form.get("p_sp_before") is not None:
         adj.append(f"主隊贏盤 {form['p_sp_before']*100:.1f}% → {m['p_sp']*100:.1f}%")
-    if form.get("d_star_load") is not None and m.get("p_ml") is not None and form.get("p_ml_before") is not None:
+    if (form.get("d_star_load") is not None and m.get("p_ml") is not None and form.get("p_ml_before") is not None
+            and abs(m["p_ml"] - form["p_ml_before"]) >= 0.0005):
         adj.append(f"主勝 {form['p_ml_before']*100:.1f}% → {m['p_ml']*100:.1f}%")
     if adj:
         out.append(f"  🧮 球員狀態調整（疲勞差 {form['d_star_load']:+.1f} 分鐘、缺陣差 {form.get('d_star_out', 0):+.0f}）：" + "；".join(adj))
@@ -504,7 +526,7 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
         hist["over"] = float((over[over != 0] > 0).mean()) if tot else None
         hist["win_resid"] = float(((a["margin"] > 0) - a["pH"]).dropna().mean())   # 相似比賽主隊勝率比市場高多少
     import calibration
-    # 讓分、不讓分：校準 + 盤口移動（樣本外驗證有效，見 calibration.py）；大小維持原始市場
+    # 讓分：power 去水 + 主力缺陣 / 疲勞調整（見 calibration.py）；不讓分只用 power 去水；大小維持原始市場
     p_sp = calibration.nba_spread(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"), sp, o.get("o_spread_home"))
     p_t = no_vig2(o.get("c_over_odds") or 1.91, o.get("c_under_odds") or 1.91)
     pm_c = calibration.nba_ml(f.get("c_ml_home"), f.get("c_ml_away"), f.get("o_ml_home"), f.get("o_ml_away"))
@@ -721,7 +743,7 @@ def analyze_mlb(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
         lines.append(f"📈 大小分 {o['o_total']:g}→{m['L']:g} → {_move_verdict(strats, 'mlb_total', m['L'] - o['o_total'], '分')}")
     hist = m["hist"]
     if m["n"]:
-        lines.append(f"<b>歷史相似盤口</b>（勝率±2.5pp、大小相同，{m['n']} 場，2024–26）")
+        lines.append(f"<b>歷史相似盤口</b>（勝率±2.5pp、大小相同，{m['n']} 場，2019–26）")
         lines.append(f"  主隊勝 {hist['win']*100:.0f}%"
                      + (f"｜大 {m['L']:g} {hist['over']*100:.0f}%" if hist.get("over") is not None else "")
                      + (f"｜主 {m['sp']:+g} 贏盤 {hist['cover']*100:.0f}%" if hist.get("cover") is not None else ""))
@@ -738,9 +760,7 @@ def analyze_mlb(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
         f = live.features(conn, g, {})
     finally:
         conn.close()
-    sig = [("⭐" if s.enabled else "☆") + s.title for s in strats
-           if s.sport == "mlb" and (s.enabled or s.weak) and trigger(s, f)]
-    return compose(head, m, [f"🔔 {escape(x)}" for x in sig], lines), m["best"]
+    return compose(head, m, apply_signals(g, m, strats, f), lines), m["best"]
 
 
 def game_model(g: dict) -> dict | None:

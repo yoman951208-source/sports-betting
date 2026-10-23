@@ -1,28 +1,22 @@
 # -*- coding: utf-8 -*-
-"""持續學習：每場比賽開賽前記錄模型預測 → 賽後自動結算 → 每天依實戰結果調整模型。
+"""持續學習：每場比賽開賽前記錄模型預測 → 賽後自動結算 → 每天檢查模型準不準。
 
-目前會學的東西：
-  shrink（每個運動各一個）—— 估計勝率 = (市場機率 × shrink + 歷史相似盤口機率 × n) / (shrink + n)
-    shrink 越大越相信市場。每天用「已結算的預測」試一組 shrink，找讓 log loss 最低的值，
-    再往那個方向移動一半（避免小樣本亂跳）。結算樣本不足 MIN_GAMES 場前維持預設值。
-    只能往「更相信市場」調，不會低於預設值（10/23：足球 168 場就把 shrink 學到 157，歷史樣本權重過半，
-    雜訊讓抽水最少的和局一直被選成推薦——14 注推薦裡 10 注是和局、只中 1 注）。
+估計勝率原本是「市場機率 × shrink + 歷史相似盤口 × n」的加權，每天依實戰結果調 shrink。
+10/23 用足球 8 季、NBA 11 季、MLB 7 季逐季留一回測：加上歷史相似盤口沒有讓預測更準，
+用它挑出的「EV ≥ 2%」選項長期約 −5%（足球 8 季 0 季為正）；實戰也一樣（足球推薦 14 注 10 注和局、只中 1 注）。
+所以現在估計勝率 = 校準後的市場機率，歷史相似盤口只當參考資料；這裡每天只「顯示」兩者的實戰 log loss 對照。
 另外輸出校準表（模型說 60% 的事，實際發生幾成），放在賽後檢討裡。
 """
 from __future__ import annotations
 
-import json
 import math
 import sqlite3
-import time
 from datetime import timedelta
 
 from core import db, kv_get, kv_set, log, now_utc, parse_iso
 
-DEFAULT_SHRINK = 600.0                  # 也是下限：實戰樣本再多也不讓歷史相似盤口的權重超過這個
 MARKET_ONLY = 1e9                       # 等同「完全相信市場」
-GRID = [600, 1200, 2500, 5000, MARKET_ONLY]
-MIN_GAMES = 120                         # 至少這麼多場已結算才開始調整
+COMPARE_SHRINK = 600.0                  # 每天對照用：舊的「市場 + 歷史相似盤口」權重
 RECORD_WINDOW_HOURS = 3                 # 開賽前幾小時內開始記錄（之後每輪更新，開賽前最後一次為準）
 
 SCHEMA = """
@@ -35,8 +29,6 @@ CREATE TABLE IF NOT EXISTS predictions (
 );
 """
 
-_cache: dict[str, tuple[float, float]] = {}
-
 
 def ensure(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
@@ -47,21 +39,8 @@ def ensure(conn: sqlite3.Connection) -> None:
 
 
 def get_shrink(sport: str) -> float:
-    """目前學到的 shrink（快取 10 分鐘）。"""
-    hit = _cache.get(sport)
-    if hit and time.time() - hit[1] < 600:
-        return hit[0]
-    try:
-        conn = db()
-        try:
-            v = kv_get(conn, f"shrink:{sport}")
-        finally:
-            conn.close()
-        val = max(DEFAULT_SHRINK, float(v)) if v else DEFAULT_SHRINK
-    except (sqlite3.Error, ValueError):
-        val = DEFAULT_SHRINK
-    _cache[sport] = (val, time.time())
-    return val
+    """估計勝率要多相信市場：10/23 起一律只用市場機率（見模組說明）。"""
+    return MARKET_ONLY
 
 
 # -----------------------------------------------------------------------------
@@ -201,26 +180,16 @@ def settled_rows(conn: sqlite3.Connection, sport: str, limit_games: int = 600):
 
 
 def update(conn: sqlite3.Connection) -> list[str]:
-    """每天跑一次：每個運動找最佳 shrink 並往那邊移一半。回傳說明文字。"""
+    """每天跑一次：實戰中「只看市場」與「加上歷史相似盤口」誰比較準（只顯示，不再自動調整）。"""
     lines = []
     for sport, zh in (("football", "足球"), ("mlb", "MLB"), ("nba", "NBA")):
         rows = settled_rows(conn, sport)
         games = len({r["game_id"] for r in rows})
-        cur = get_shrink(sport)
         if games == 0:
             continue
-        ll_mkt, ll_cur = _logloss(rows, MARKET_ONLY), _logloss(rows, cur)
-        if games < MIN_GAMES:
-            lines.append(f"• {zh}：已結算 {games} 場（滿 {MIN_GAMES} 場才開始調整）｜log loss 市場 {ll_mkt:.4f} / 模型 {ll_cur:.4f}")
-            continue
-        best = min(GRID, key=lambda s: _logloss(rows, s))
-        new = MARKET_ONLY if best >= MARKET_ONLY and cur >= 5000 else math.exp((math.log(cur) + math.log(min(best, 20000))) / 2)
-        kv_set(conn, f"shrink:{sport}", str(new))
-        _cache.pop(sport, None)
-        tag = "完全相信市場" if new >= MARKET_ONLY else f"{new:.0f}"
-        lines.append(f"• {zh}：已結算 {games} 場｜log loss 市場 {ll_mkt:.4f} / 模型 {ll_cur:.4f}｜"
-                     f"最佳權重 {'市場' if best >= MARKET_ONLY else best} → 調整為 {tag}（原 {cur:.0f}）")
-        log.info("學習：%s shrink %.0f → %s", sport, cur, tag)
+        ll_mkt, ll_hist = _logloss(rows, MARKET_ONLY), _logloss(rows, COMPARE_SHRINK)
+        lines.append(f"• {zh}：近 {games} 場｜log loss 只看市場 {ll_mkt:.4f} / 加上歷史相似盤口 {ll_hist:.4f}"
+                     f"（{'市場較準' if ll_mkt <= ll_hist else '歷史加權較準'}；模型只用市場機率）")
     return lines
 
 

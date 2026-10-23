@@ -14,6 +14,7 @@ from html import escape
 from itertools import combinations
 
 import live
+import ui
 from analyze import game_model, game_title, upcoming
 from backtest import load_strategies
 from core import db
@@ -27,12 +28,7 @@ SIGNAL_BONUS = 0.02
 ICON = {"football": "⚽", "nba": "🏀", "mlb": "⚾"}
 
 
-def grade(ev: float) -> str:
-    if ev >= 0.02:
-        return "🟢 推薦"
-    if ev >= -0.02:
-        return "🟡 接近公平"
-    return "🔴 偏貴（只是最不虧）"
+grade = ui.grade
 
 
 def _signals(g: dict, strats) -> dict[tuple, str]:
@@ -182,8 +178,8 @@ def report(games: list[dict], hours: float = 24, save_conn=None) -> list[str]:
         others = [c for c in cands[1:4]]
         lines = ["<b>🥈 其他單關候選</b>"]
         for c in others:
-            lines.append(f"• {ICON[c['g']['sport']]} {live.kickoff_str(c['g'])} {escape(game_title(c['g']))}\n"
-                         f"  👉 {escape(c['name'])}｜{c['p']*100:.0f}%｜📌 運彩 ≥ {c['fair']:.2f}｜{grade(c['ev'])}")
+            lines.append(f"{ui.grade_icon(c['ev'])} {ICON[c['g']['sport']]} {live.kickoff_str(c['g'])} {escape(game_title(c['g']))}\n"
+                         f"　 👉 {escape(c['name'])} @{c['odds']:.2f}｜{c['p']*100:.0f}%｜📌 運彩 ≥ {c['fair']:.2f}")
         blocks.append("\n".join(lines))
     for t, size, cn in ((p2, 2, "二串一"), (p3, 3, "三串一")):
         blocks.append(_parlay_block(t, f"🎫 最推薦{cn}") if t else

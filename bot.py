@@ -77,8 +77,11 @@ def setup_commands() -> None:
 def _game_label(g: dict) -> str:
     import analyze
     from core import parse_iso, to_tpe
+    import ui
     t = to_tpe(parse_iso(g["kickoff"]))
-    label = f"{t:%m/%d %H:%M} {analyze.game_title(g)}"
+    ev = g.get("_best_ev")          # league_report 算過的最佳期望值 → 按鈕上直接看得到評等
+    icon = "" if ev is None else ui.grade_icon(ev) + " "
+    label = f"{icon}{t:%m/%d %H:%M} {analyze.game_title(g)}"
     return label if len(label) <= 40 else label[:39] + "…"
 
 
@@ -166,15 +169,8 @@ def handle(text: str) -> None:
         import review
         hours = float(arg) if arg.replace(".", "", 1).isdigit() else 24
         head, *blocks = review.build(hours)
-        conn = db()
-        try:
-            nba_head, nba_games = review.nba_blocks(conn, hours)
-        finally:
-            conn.close()
         send_telegram(head)
-        if nba_head:
-            send_telegram(nba_head)
-        send_blocks(blocks + nba_games)
+        send_blocks(blocks)
         return
     if cmd in ("report", "成績", "戰績"):
         conn = db()

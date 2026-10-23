@@ -1,24 +1,23 @@
 # -*- coding: utf-8 -*-
-"""賽後檢討：用開賽前最後一次存下的 DK 盤口，重算當時的賽前分析，再跟實際賽果比對。
+"""盤後分析：每場只列「我們推薦的那一注」有沒有中（10/23 介面整理），加上一行市場摘要。
 
-看三件事：
-  1. 市場準不準：熱門打出幾場、爆冷幾場、進球數 vs 賽前預期
-  2. 盤口變化（資金方向）有沒有說中
-  3. 模型（市場 + 歷史相似盤口）比單看市場好還是差；假設照模型下注的損益
+推薦 = 開賽前最後一次盤口算出的模型中，期望值最高的選項。EV ≥ +2% 才算真的推薦（🟢）；
+其他場次標「沒推薦」，括號附上最接近的選項有沒有中，給模型檢討用。
+足球用賽前快照重算；NBA / MLB 用開賽前記錄的 predictions。最推薦的單關／串關另外列在最前面。
 """
 from __future__ import annotations
 
 import json
-import math
 from datetime import timedelta
 from html import escape
 
 import live
-from analyze import MIN_EDGE, football_model, zh
+import ui
+from analyze import MIN_EDGE, football_model, zh_short
 from core import db, now_utc, parse_iso, to_tpe
 from strategies import settle_handicap
 
-UPSET_P = 0.25   # 實際賽果的賽前機率低於這個就算爆冷
+UPSET_P = 0.25   # 足球：實際賽果的賽前機率低於這個就算爆冷
 
 
 def _prematch_odds(conn, game_id: str, kickoff) -> tuple[dict | None, object]:
@@ -46,10 +45,6 @@ def _profit(opt: dict, m: dict, hs: int, as_: int) -> float:
     return settle_handicap(margin, m["sp"] if pick == "home" else -m["sp"], opt["odds"])
 
 
-def _mark(x: float) -> str:
-    return "✅" if x > 0 else "❌" if x < 0 else "➖"
-
-
 def review_games(hours: float = 24) -> list[dict]:
     """過去 hours 小時內完賽、且有賽前快照的足球比賽。"""
     games = live.fetch_games()
@@ -72,231 +67,30 @@ def review_games(hours: float = 24) -> list[dict]:
             res_i = 0 if hs > as_ else 2 if hs < as_ else 1
             for o in m["options"]:
                 o["profit"] = _profit(o, m, hs, as_)
-            p_model = next(o["p"] for o in m["options"] if o["key"] == ("1x2", "HDA"[res_i]))
-            steam = None
-            if m["po"]:
-                moves = [b - a for a, b in zip(m["po"], m["pc"])]
-                i = max(range(3), key=lambda k: abs(moves[k]))
-                if abs(moves[i]) >= 0.03:
-                    # 資金湧入的結果有沒有打出；若是某結果被拉高賠率（機率下降），看它是否沒打出
-                    steam = {"i": i, "move": moves[i], "right": (res_i == i) == (moves[i] > 0)}
-            out.append({"g": g, "m": m, "ts": ts, "mins_before": (kick - ts).total_seconds() / 60,
-                        "res_i": res_i, "p_mkt": m["pc"][res_i], "p_model": p_model, "steam": steam})
+            out.append({"g": g, "m": m, "res_i": res_i, "p_mkt": m["pc"][res_i]})
     finally:
         conn.close()
     return sorted(out, key=lambda r: (r["g"]["league"], r["g"]["kickoff"]))
 
 
-def match_block(r: dict) -> str:
-    g, m = r["g"], r["m"]
-    hs, as_ = g["home_score"], g["away_score"]
-    res_name = ["主勝", "和局", "客勝"][r["res_i"]]
-    upset = " 🔥爆冷" if r["p_mkt"] < UPSET_P else ""
-    lines = [f"⚽ {escape(g['league'])}｜{live.kickoff_str(g)}",
-             f"<b>{escape(zh(g['home']))} {hs} - {as_} {escape(zh(g['away']))}</b>",
-             f"賽前（開賽前 {r['mins_before']:.0f} 分鐘）：勝/和/負 " + "/".join(f"{p*100:.0f}" for p in m["pc"]) + "%"
-             + (f"｜大 {m['L']:g} 球 {m['pOL']*100:.0f}%（預期 {m['lam']:.1f} 球）" if m["lam"] else ""),
-             f"實際：{res_name}（市場給 {r['p_mkt']*100:.0f}%）{upset}｜{hs + as_} 球"]
-    picks = []
-    for o in m["options"]:
-        if o["key"][0] != "1x2":
-            picks.append(f"{o['name']}{_mark(o['profit'])}")
-    if picks:
-        lines.append("　" + "　".join(escape(p) for p in picks))
-    if r["steam"]:
-        s = r["steam"]
-        lines.append(f"資金方向：{['主勝', '和局', '客勝'][s['i']]} {s['move']*100:+.0f}pp → {'✅ 說中' if s['right'] else '❌ 沒說中'}")
-    b = m["best"]
-    if b:
-        tag = "建議" if b["ev"] >= MIN_EDGE else "觀望（若硬買）"
-        lines.append(f"模型最佳：{escape(b['name'])}（EV {b['ev']*100:+.1f}%，{tag}）→ {_mark(b['profit'])} {b['profit']:+.2f} 注")
-    return "\n".join(lines)
-
-
-def summary(rs: list[dict], hours: float) -> str:
-    if not rs:
-        return f"過去 {hours:g} 小時沒有可檢討的比賽（需要賽前有存到盤口快照）。"
-    n = len(rs)
-    leagues = {}
-    for r in rs:
-        leagues[r["g"]["league"]] = leagues.get(r["g"]["league"], 0) + 1
-    fav_hits = sum(r["res_i"] == max(range(3), key=lambda i: r["m"]["pc"][i]) for r in rs)
-    upsets = [r for r in rs if r["p_mkt"] < UPSET_P]
-    goals = sum(r["g"]["home_score"] + r["g"]["away_score"] for r in rs)
-    exp_goals = sum(r["m"]["lam"] or 0 for r in rs)
-    overs = [next((o for o in r["m"]["options"] if o["key"] == ("total", "over")), None) for r in rs]
-    over_w = sum(1 for o in overs if o and o["profit"] > 0)
-    over_l = sum(1 for o in overs if o and o["profit"] < 0)
-    steams = [r["steam"] for r in rs if r["steam"]]
-    ll_mkt = sum(-math.log(r["p_mkt"]) for r in rs) / n
-    ll_mod = sum(-math.log(r["p_model"]) for r in rs) / n
-    best = [r["m"]["best"] for r in rs if r["m"]["best"]]
-    best_units = sum(b["profit"] for b in best)
-    rec = [b for b in best if b["ev"] >= MIN_EDGE]
-    fav_units = sum(next(o["profit"] for o in r["m"]["options"]
-                         if o["key"] == ("1x2", "HDA"[max(range(3), key=lambda i: r["m"]["pc"][i])])) for r in rs)
-    t0 = to_tpe(min(parse_iso(r["g"]["kickoff"]) for r in rs))
-    lines = [f"🧾 <b>賽後檢討</b>｜{t0:%m/%d} 起 {n} 場（" + "、".join(f"{k} {v}" for k, v in leagues.items()) + "）", "",
-             "<b>市場準不準</b>",
-             f"• 熱門結果打出 {fav_hits}/{n} 場（賽前平均預期約 {sum(max(r['m']['pc']) for r in rs)/n*100:.0f}%）",
-             f"• 爆冷（賽前機率 &lt;{UPSET_P*100:.0f}%）{len(upsets)} 場"
-             + (f"：" + "、".join(f"{escape(zh(r['g']['home']))} {r['g']['home_score']}-{r['g']['away_score']} "
-                                   f"{escape(zh(r['g']['away']))}（{r['p_mkt']*100:.0f}%）" for r in upsets) if upsets else ""),
-             f"• 總進球 {goals}（平均 {goals/n:.2f}）vs 賽前預期 {exp_goals:.1f}（平均 {exp_goals/n:.2f}）",
-             f"• DK 大小盤：大 {over_w} 場、小 {over_l} 場"]
-    if steams:
-        lines.append(f"• 盤口變化 ≥3pp 的 {len(steams)} 場：資金方向說中 {sum(s['right'] for s in steams)} 場")
-    lines += ["", "<b>模型表現</b>",
-              f"• 實際結果的賽前平均機率：市場 {sum(r['p_mkt'] for r in rs)/n*100:.1f}% / 模型 {sum(r['p_model'] for r in rs)/n*100:.1f}%"
-              f"（log loss {ll_mkt:.3f} / {ll_mod:.3f}，越低越好）",
-              f"• 系統建議下注（EV ≥{MIN_EDGE*100:.0f}%）：{len(rec)} 注" + (f"，{sum(b['profit'] for b in rec):+.2f} 注" if rec else "（全部觀望 → 0 損失）"),
-              f"• 假設每場硬買「EV 最高」的選項：{sum(b['profit'] > 0 for b in best)} 勝 {sum(b['profit'] < 0 for b in best)} 負，{best_units:+.2f} 注",
-              f"• 對照：每場買勝平負熱門：{fav_units:+.2f} 注"]
-    return "\n".join(lines)
-
-
-def build(hours: float = 24) -> list[str]:
-    rs = review_games(hours)
-    return [summary(rs, hours)] + [match_block(r) for r in rs]
-
-
 # =============================================================================
-# 每日盤後分析（足球 + MLB/NBA + 串關 + 學習）
+# 共用：每場一行推薦結果、推薦 / 沒推薦的小計
 # =============================================================================
-def us_sports_blocks(conn, hours: float) -> list[str]:
-    """MLB / NBA：用 predictions 表（開賽前最後一次記錄的模型預測）對照賽果。"""
-    since = (now_utc() - timedelta(hours=hours + 4)).isoformat()
-    games = conn.execute("""SELECT DISTINCT p.game_id, g.* FROM predictions p JOIN games g ON g.game_id = p.game_id
-                            WHERE p.sport = 'mlb' AND g.status='final' AND g.kickoff >= ?
-                            ORDER BY g.kickoff""", (since,)).fetchall()
-    blocks = []
-    for g in games:
-        opts = conn.execute("SELECT * FROM predictions WHERE game_id=?", (g["game_id"],)).fetchall()
-        icon = "⚾" if g["sport"] == "mlb" else "🏀"
-        gg = dict(g)
-        title = f"{live.team_name(gg, 'away')} {g['away_score']} @ {g['home_score']} {live.team_name(gg, 'home')}"
-        ml = {o["pick"]: o for o in opts if o["market"] == "ml"}
-        winner = "home" if g["home_score"] > g["away_score"] else "away"
-        lines = [f"{icon} {g['league']}｜{to_tpe(parse_iso(g['kickoff'])):%m/%d %H:%M}", f"<b>{escape(title)}</b>"]
-        if winner in ml:
-            p = ml[winner]["p_mkt"]
-            lines.append(f"實際：{escape(live.team_name(gg, winner))} 勝（賽前市場給 {p*100:.0f}%）" + (" 🔥爆冷" if p < 0.35 else ""))
-        marks = [f"{_opt_name(gg, o)}{_mark(o['profit'] or 0)}" for o in opts if o["result"] in ("W", "L", "P")]
-        lines.append("　" + "　".join(escape(x) for x in marks))
-        best = max(opts, key=lambda o: o["p_model"] * o["odds"] - 1)
-        ev = best["p_model"] * best["odds"] - 1
-        lines.append(f"模型最佳：{escape(_opt_name(gg, best))}（EV {ev*100:+.1f}%{'' if ev >= MIN_EDGE else '，觀望'}）→ "
-                     f"{_mark(best['profit'] or 0)} {best['profit'] or 0:+.2f} 注")
-        blocks.append("\n".join(lines))
-    return blocks
+def _pick_line(name: str, odds: float, ev: float, profit: float | None) -> str:
+    if ev >= MIN_EDGE:
+        return f"　🟢 推薦 <b>{escape(name)}</b> @{odds:.2f} → {ui.result_text(profit)}"
+    return f"　⚪ 沒推薦（最接近的 {escape(name)} {ui.mark(profit)}）"
 
 
-def _nba_player_line(rows: list[dict], team: str) -> tuple[str, list[str]]:
-    """某隊的得分王（前 3 位）與缺陣者。回傳（得分文字, 缺陣文字列表）。"""
-    mine = [r for r in rows if r["team"] == team]
-    played = sorted([r for r in mine if not r["dnp"] and (r.get("min") or 0) > 0], key=lambda r: -(r.get("pts") or 0))
-    top = "、".join(f"{r['name'].split()[-1]} {int(r['pts'] or 0)}分{int(r['reb'] or 0)}板{int(r['ast'] or 0)}助/{int(r['min'] or 0)}分鐘"
-                   for r in played[:3])
-    out = [f"{r['name']}（{r['reason'].title() or '未上場'}）" for r in mine
-           if r["dnp"] and r.get("reason") and any(k in r["reason"].upper() for k in ("INJURY", "ILLNESS", "REST", "OUT", "PERSONAL"))]
-    return top, out[:4]
-
-
-def nba_blocks(conn, hours: float) -> tuple[str | None, list[str]]:
-    """NBA 盤後分析：盤口表現（讓分 / 大小 / 不讓分 / 資金方向）、球員表現與缺陣、模型預測對照。"""
-    import data_nba_box
-    since = (now_utc() - timedelta(hours=hours + 4)).isoformat()
-    games = conn.execute("""SELECT * FROM games WHERE sport='nba' AND status='final' AND kickoff >= ?
-                            ORDER BY kickoff""", (since,)).fetchall()
-    rows = []
-    for g in games:
-        odds, _ts = _prematch_odds(conn, g["game_id"], parse_iso(g["kickoff"]))
-        if not odds or odds.get("c_spread_home") is None:
-            continue
-        eid = g["game_id"].split(":")[-1]
-        box = data_nba_box.fetch_box(eid) or []
-        margin = g["home_score"] - g["away_score"]
-        cover = margin + odds["c_spread_home"]
-        pts = g["home_score"] + g["away_score"]
-        tot = odds.get("c_total")
-        pm = None
-        if odds.get("c_ml_home") and odds.get("c_ml_away"):
-            pm = (1 / odds["c_ml_home"]) / (1 / odds["c_ml_home"] + 1 / odds["c_ml_away"])
-        opts = conn.execute("SELECT * FROM predictions WHERE game_id=? AND result IN ('W','L','P')", (g["game_id"],)).fetchall()
-        rows.append({"g": dict(g), "odds": odds, "box": box, "margin": margin, "cover": cover, "pts": pts, "tot": tot,
-                     "pm_home": pm, "opts": opts})
-    if not rows:
-        return None, []
-    n = len(rows)
-    fav_home = lambda r: r["odds"]["c_spread_home"] <= 0
-    fav_cover = sum(1 for r in rows if r["cover"] != 0 and ((r["cover"] > 0) == fav_home(r)))
-    decided = sum(1 for r in rows if r["cover"] != 0)
-    home_cover = sum(r["cover"] > 0 for r in rows)
-    overs = sum(1 for r in rows if r["tot"] and r["pts"] > r["tot"])
-    unders = sum(1 for r in rows if r["tot"] and r["pts"] < r["tot"])
-    avg_pts = sum(r["pts"] for r in rows) / n
-    avg_tot = sum(r["tot"] for r in rows if r["tot"]) / max(1, sum(1 for r in rows if r["tot"]))
-    fav_win = sum(1 for r in rows if r["pm_home"] is not None and ((r["margin"] > 0) == (r["pm_home"] >= 0.5)))
-    upsets = [r for r in rows if r["pm_home"] is not None and ((r["margin"] > 0 and r["pm_home"] < 0.35) or (r["margin"] < 0 and r["pm_home"] > 0.65))]
-    moved = []
-    for r in rows:
-        o = r["odds"]
-        if o.get("o_spread_home") is not None and abs(o["c_spread_home"] - o["o_spread_home"]) >= 2 and r["cover"] != 0:
-            toward_home = o["c_spread_home"] < o["o_spread_home"]
-            moved.append((r, (r["cover"] > 0) == toward_home))
-    best = []
-    for r in rows:
-        if r["opts"]:
-            b = max(r["opts"], key=lambda o: o["p_model"] * o["odds"] - 1)
-            best.append((b, b["p_model"] * b["odds"] - 1))
-    rec = [(b, ev) for b, ev in best if ev >= MIN_EDGE]
-    t0 = to_tpe(parse_iso(min(r["g"]["kickoff"] for r in rows)))
-    lines = [f"🏀 <b>NBA 盤後分析</b>｜{t0:%m/%d} 起 {n} 場", "",
-             "<b>盤口表現</b>",
-             f"• 讓分：讓分方（熱門）贏盤 {fav_cover}/{decided}，主隊贏盤 {home_cover}/{n}",
-             f"• 大小分：平均總分 {avg_pts:.1f} vs 盤口平均 {avg_tot:.1f}（{avg_pts - avg_tot:+.1f}），大 {overs} 場、小 {unders} 場",
-             f"• 不讓分：熱門打出 {fav_win}/{n} 場"
-             + (f"；爆冷（賽前 <35%）{len(upsets)} 場：" + "、".join(
-                 f"{escape(live.team_name(r['g'], 'away'))} {r['g']['away_score']}-{r['g']['home_score']} {escape(live.team_name(r['g'], 'home'))}"
-                 for r in upsets) if upsets else "")]
-    if moved:
-        lines.append(f"• 讓分盤開→收移動 ≥2 分的 {len(moved)} 場：跟著資金方向的一方贏盤 {sum(ok for _, ok in moved)} 場")
-    lines += ["", "<b>模型</b>"]
-    if best:
-        lines.append(f"• 系統建議下注（EV ≥{MIN_EDGE*100:.0f}%）：{len(rec)} 注" + (f"，{sum(b['profit'] or 0 for b, _ in rec):+.2f} 注" if rec else "（全部觀望 → 0 損失）"))
-        lines.append(f"• 假設每場硬買 EV 最高的選項：{sum((b['profit'] or 0) > 0 for b, _ in best)} 勝 {sum((b['profit'] or 0) < 0 for b, _ in best)} 負，"
-                     f"{sum(b['profit'] or 0 for b, _ in best):+.2f} 注")
-    lines.append("• 球員狀態調整（疲勞、缺陣）要等每隊打滿 5 場、主力有季平均後才啟用；之前只顯示不調整")
-    blocks = []
-    for r in rows:
-        g, o = r["g"], r["odds"]
-        sp = o["c_spread_home"]
-        away, home = live.team_name(g, "away"), live.team_name(g, "home")
-        fav = home if sp <= 0 else away
-        cov_txt = "走盤" if r["cover"] == 0 else ("主隊贏盤" if r["cover"] > 0 else "客隊贏盤")
-        ou = "" if not r["tot"] else ("大" if r["pts"] > r["tot"] else "小" if r["pts"] < r["tot"] else "走")
-        ls = [f"🏀 NBA｜{to_tpe(parse_iso(g['kickoff'])):%m/%d %H:%M}",
-              f"<b>{escape(away)} {g['away_score']} @ {g['home_score']} {escape(home)}</b>",
-              f"賽前：讓分 主{sp:+g}（{escape(fav)} 讓）"
-              + (f"，開盤 {o['o_spread_home']:+g}" if o.get("o_spread_home") is not None and o["o_spread_home"] != sp else "")
-              + (f"｜大小 {r['tot']:g}" if r["tot"] else "")
-              + (f"｜主勝率 {r['pm_home']*100:.0f}%" if r["pm_home"] is not None else ""),
-              f"結果：{cov_txt}（主隊淨勝 {r['margin']:+d}，主隊讓分 {sp:+g}）｜總分 {r['pts']}" + (f"（{ou}）" if ou else "")]
-        if r["box"]:
-            for side, team in (("away", g["away_abbr"]), ("home", g["home_abbr"])):
-                top, out = _nba_player_line(r["box"], team)
-                nm = escape(live.team_name(g, side))
-                if top:
-                    ls.append(f"　{nm}：{escape(top)}")
-                if out:
-                    ls.append(f"　　🚑 缺陣：{escape('、'.join(out))}")
-        if r["opts"]:
-            b = max(r["opts"], key=lambda o: o["p_model"] * o["odds"] - 1)
-            ev = b["p_model"] * b["odds"] - 1
-            ls.append(f"模型最佳：{escape(_opt_name(g, b))}（EV {ev*100:+.1f}%{'' if ev >= MIN_EDGE else '，觀望'}）→ "
-                      f"{_mark(b['profit'] or 0)} {b['profit'] or 0:+.2f} 注")
-        blocks.append("\n".join(ls))
-    return "\n".join(lines), blocks
+def _tally(picks: list[tuple[float, float]]) -> list[str]:
+    """picks = [(期望值, 損益)] → 推薦 / 沒推薦的戰績。"""
+    rec = [p or 0 for ev, p in picks if ev >= MIN_EDGE]
+    rest = [p or 0 for ev, p in picks if ev < MIN_EDGE]
+    out = [f"🟢 推薦 {len(rec)} 注：中 {sum(p > 0 for p in rec)}、沒中 {sum(p < 0 for p in rec)}｜<b>{sum(rec):+.2f} 注</b>"
+           if rec else "🟢 推薦 0 注（全部觀望）"]
+    if rest:
+        out.append(f"⚪ 沒推薦 {len(rest)} 場（若硬買最接近的：中 {sum(p > 0 for p in rest)}、沒中 {sum(p < 0 for p in rest)}，{sum(rest):+.2f} 注）")
+    return out
 
 
 def _opt_name(g: dict, o) -> str:
@@ -310,23 +104,195 @@ def _opt_name(g: dict, o) -> str:
     return o["pick"]
 
 
-def parlay_blocks(conn, hours: float) -> list[str]:
+def _ev(o) -> float:
+    return o["p_model"] * o["odds"] - 1
+
+
+# =============================================================================
+# 足球
+# =============================================================================
+def football_section(rs: list[dict]) -> str | None:
+    if not rs:
+        return None
+    n = len(rs)
+    fav_hits = sum(r["res_i"] == max(range(3), key=lambda i: r["m"]["pc"][i]) for r in rs)
+    goals = sum(r["g"]["home_score"] + r["g"]["away_score"] for r in rs)
+    exp_goals = sum(r["m"]["lam"] or 0 for r in rs)
+    picks = [(r["m"]["best"]["ev"], r["m"]["best"]["profit"]) for r in rs if r["m"]["best"]]
+    lines = [f"⚽ <b>足球</b>（{n} 場）", *_tally(picks),
+             f"市場：熱門打出 {fav_hits}/{n}｜爆冷 {sum(r['p_mkt'] < UPSET_P for r in rs)} 場｜"
+             f"進球 {goals}（賽前預期 {exp_goals:.0f}）"]
+    league = None
+    for r in rs:
+        g, b = r["g"], r["m"]["best"]
+        if g["league"] != league:
+            league = g["league"]
+            lines += ["", f"<b>【{escape(league)}】</b>"]
+        upset = " 🔥爆冷" if r["p_mkt"] < UPSET_P else ""
+        lines.append(f"{escape(zh_short(g['home']))} <b>{g['home_score']}-{g['away_score']}</b> {escape(zh_short(g['away']))}{upset}")
+        if b:
+            lines.append(_pick_line(b.get("short", b["name"]), b["odds"], b["ev"], b["profit"]))
+    return "\n".join(lines)
+
+
+# =============================================================================
+# NBA / MLB（用開賽前記錄的 predictions）
+# =============================================================================
+def _nba_player_line(rows: list[dict], team: str) -> tuple[str, list[str]]:
+    """某隊的得分王與缺陣者。回傳（得分王文字, 缺陣名單）。"""
+    mine = [r for r in rows if r["team"] == team]
+    played = sorted([r for r in mine if not r["dnp"] and (r.get("min") or 0) > 0], key=lambda r: -(r.get("pts") or 0))
+    top = (f"{played[0]['name'].split()[-1]} {int(played[0]['pts'] or 0)}分{int(played[0]['reb'] or 0)}板"
+           f"{int(played[0]['ast'] or 0)}助") if played else ""
+    out = [r["name"] for r in mine
+           if r["dnp"] and r.get("reason") and any(k in r["reason"].upper() for k in ("INJURY", "ILLNESS", "REST", "OUT", "PERSONAL"))]
+    return top, out[:3]
+
+
+def nba_section(conn, hours: float) -> str | None:
+    import data_nba_box
+    since = (now_utc() - timedelta(hours=hours + 4)).isoformat()
+    games = conn.execute("""SELECT * FROM games WHERE sport='nba' AND status='final' AND kickoff >= ?
+                            ORDER BY kickoff""", (since,)).fetchall()
+    rows = []
+    for g in games:
+        odds, _ts = _prematch_odds(conn, g["game_id"], parse_iso(g["kickoff"]))
+        if not odds or odds.get("c_spread_home") is None:
+            continue
+        margin = g["home_score"] - g["away_score"]
+        pm = None
+        if odds.get("c_ml_home") and odds.get("c_ml_away"):
+            pm = (1 / odds["c_ml_home"]) / (1 / odds["c_ml_home"] + 1 / odds["c_ml_away"])
+        opts = conn.execute("SELECT * FROM predictions WHERE game_id=? AND result IN ('W','L','P')", (g["game_id"],)).fetchall()
+        rows.append({"g": dict(g), "odds": odds, "box": data_nba_box.fetch_box(g["game_id"].split(":")[-1]) or [],
+                     "margin": margin, "cover": margin + odds["c_spread_home"], "pts": g["home_score"] + g["away_score"],
+                     "tot": odds.get("c_total"), "upset": pm is not None and ((margin > 0 and pm < 0.35) or (margin < 0 and pm > 0.65)),
+                     "best": max(opts, key=_ev) if opts else None})
+    if not rows:
+        return None
+    decided = [r for r in rows if r["cover"] != 0]
+    fav_cover = sum((r["cover"] > 0) == (r["odds"]["c_spread_home"] <= 0) for r in decided)
+    overs = sum(1 for r in rows if r["tot"] and r["pts"] > r["tot"])
+    unders = sum(1 for r in rows if r["tot"] and r["pts"] < r["tot"])
+    picks = [(_ev(r["best"]), r["best"]["profit"]) for r in rows if r["best"]]
+    lines = [f"🏀 <b>NBA</b>（{len(rows)} 場）", *_tally(picks),
+             f"市場：讓分熱門贏盤 {fav_cover}/{len(decided)}｜大 {overs} 小 {unders}｜爆冷 {sum(r['upset'] for r in rows)} 場"]
+    for r in rows:
+        g = r["g"]
+        lines += ["", f"{escape(live.team_name(g, 'away'))} <b>{g['away_score']} @ {g['home_score']}</b> "
+                      f"{escape(live.team_name(g, 'home'))}" + (" 🔥爆冷" if r["upset"] else "")]
+        if r["best"]:
+            b = r["best"]
+            lines.append(_pick_line(_opt_name(g, b), b["odds"], _ev(b), b["profit"]))
+        if r["box"]:
+            tops, outs = [], []
+            for side, team in (("away", g["away_abbr"]), ("home", g["home_abbr"])):
+                top, out = _nba_player_line(r["box"], team)
+                if top:
+                    tops.append(f"{live.team_name(g, side)} {top}")
+                outs += out
+            if tops:
+                lines.append("　🏅 " + escape("｜".join(tops)))
+            if outs:
+                lines.append("　🚑 缺陣：" + escape("、".join(outs)))
+    return "\n".join(lines)
+
+
+def mlb_section(conn, hours: float) -> str | None:
+    since = (now_utc() - timedelta(hours=hours + 4)).isoformat()
+    games = conn.execute("""SELECT DISTINCT g.* FROM predictions p JOIN games g ON g.game_id = p.game_id
+                            WHERE p.sport = 'mlb' AND g.status='final' AND g.kickoff >= ?
+                            ORDER BY g.kickoff""", (since,)).fetchall()
+    rows = []
+    for g in games:
+        opts = conn.execute("SELECT * FROM predictions WHERE game_id=? AND result IN ('W','L','P')", (g["game_id"],)).fetchall()
+        if opts:
+            rows.append((dict(g), max(opts, key=_ev)))
+    if not rows:
+        return None
+    lines = [f"⚾ <b>MLB</b>（{len(rows)} 場）", *_tally([(_ev(b), b["profit"]) for _, b in rows])]
+    for g, b in rows:
+        lines += ["", f"{escape(live.team_name(g, 'away'))} <b>{g['away_score']} @ {g['home_score']}</b> {escape(live.team_name(g, 'home'))}",
+                  _pick_line(_opt_name(g, b), b["odds"], _ev(b), b["profit"])]
+    return "\n".join(lines)
+
+
+# =============================================================================
+# 最推薦與串關
+# =============================================================================
+def _leg_profit(conn, leg: dict) -> float | None:
+    from learning import leg_profit
+    g = conn.execute("SELECT status, home_score, away_score FROM games WHERE game_id=?", (leg["game_id"],)).fetchone()
+    if not g or g["status"] != "final" or g["home_score"] is None:
+        return None
+    return leg_profit(leg["sport"], leg["market"], leg["pick"], leg["line"], leg["odds"], g["home_score"], g["away_score"])
+
+
+def _ticket_line(conn, r, label: str) -> str:
+    legs = json.loads(r["legs"])
+    if len(legs) == 1:
+        l = legs[0]
+        body = f"{escape(l.get('name', ''))} @{l['odds']:.2f}（{escape(l.get('title', ''))}）"
+    else:
+        body = " ＋ ".join(f"{escape(l.get('name', ''))}{ui.mark(_leg_profit(conn, l))}" for l in legs)
+    return f"{ui.mark(r['profit'])} <b>{escape(label)}</b>：{body} → {r['profit']:+.2f} 注"
+
+
+def best_section(conn, hours: float) -> list[str]:
+    """最推薦（單關 / 二串一 / 三串一）的結果，最重要所以放最前面。"""
     import parlay
     conn.executescript(parlay.PARLAY_SCHEMA)
     since = (now_utc() - timedelta(hours=hours + 6)).isoformat()
-    rows = conn.execute("SELECT * FROM parlays WHERE result IS NOT NULL AND settled >= ? ORDER BY id", (since,)).fetchall()
-    lines = ["🎟️ <b>串關結果</b>"]
-    if rows:
-        for r in rows:
-            legs = json.loads(r["legs"])
-            names = " + ".join(escape(l.get("name", "")) for l in legs)
-            lines.append(f"{'✅中' if r['result'] == 'W' else '❌'} {escape(r['label'])}：{names}"
-                         f"（命中率 {r['p']*100:.0f}%，{r['profit']:+.2f} 注）")
-    else:
-        lines.append("（這段期間沒有結算的串關）")
-    lines.append("近 7 天：" + parlay.record_lines(conn, 7)[0])
-    lines.append("累計：" + parlay.record_lines(conn)[0])
-    return ["\n".join(lines)]
+    rows = conn.execute("SELECT * FROM parlays WHERE result IS NOT NULL AND settled >= ? AND label LIKE '最推薦｜%' ORDER BY id",
+                        (since,)).fetchall()
+    lines = ["🏆 <b>最推薦結果</b>"]
+    lines += [_ticket_line(conn, r, r["label"].split("｜", 1)[-1]) for r in rows] or ["（這段期間沒有結算的最推薦）"]
+    since30 = (now_utc() - timedelta(days=30)).isoformat()
+    rec = []
+    for k in ("單關", "二串一", "三串一"):
+        rs = conn.execute("SELECT result, profit FROM parlays WHERE result IN ('W','L','P') AND created >= ? AND label = ?",
+                          (since30, "最推薦｜" + k)).fetchall()
+        rec.append(f"{k} {sum(r['result'] == 'W' for r in rs)}/{len(rs)} 中 {sum(r['profit'] for r in rs):+.1f} 注" if rs else f"{k} 尚無")
+    lines.append("近 30 天：" + "｜".join(rec))
+    return lines
+
+
+def parlay_section(conn, hours: float) -> str:
+    import parlay
+    since = (now_utc() - timedelta(hours=hours + 6)).isoformat()
+    rows = conn.execute("SELECT * FROM parlays WHERE result IS NOT NULL AND settled >= ? AND label NOT LIKE '最推薦｜%' ORDER BY id",
+                        (since,)).fetchall()
+    lines = ["🎟️ <b>每日串關結果</b>"]
+    lines += [_ticket_line(conn, r, r["label"]) for r in rows] or ["（這段期間沒有結算的串關）"]
+    lines += ["近 7 天：" + parlay.record_lines(conn, 7)[0], "累計：" + parlay.record_lines(conn)[0]]
+    return "\n".join(lines)
+
+
+# =============================================================================
+# 組合
+# =============================================================================
+def _sections(conn, hours: float) -> tuple[str, list[str]]:
+    fb = review_games(hours)
+    t0 = to_tpe(now_utc() - timedelta(hours=hours))
+    head = [f"🧾 <b>盤後分析</b>｜{t0:%m/%d %H:%M} 之後完賽的比賽", "✅ 中　❌ 沒中　➖ 走盤", ""] + best_section(conn, hours)
+    blocks = [b for b in (football_section(fb), nba_section(conn, hours), mlb_section(conn, hours)) if b]
+    if not blocks:
+        blocks = [f"過去 {hours:g} 小時沒有可檢討的比賽（需要賽前有存到盤口快照）。"]
+    return "\n".join(head), blocks + [parlay_section(conn, hours)]
+
+
+def build(hours: float = 24) -> list[str]:
+    """「賽後」指令：結算後組訊息（不做模型學習）。回傳 [摘要, 各段落...]。"""
+    import learning
+    import parlay
+    conn = db()
+    try:
+        learning.settle_predictions(conn)
+        parlay.settle_parlays(conn)
+        head, blocks = _sections(conn, hours)
+    finally:
+        conn.close()
+    return [head] + blocks
 
 
 def daily(hours: float = 24) -> list[str]:
@@ -339,17 +305,10 @@ def daily(hours: float = 24) -> list[str]:
         parlay.settle_parlays(conn)
         learn = learning.update(conn) + learning.check_calibration(conn)
         calib = learning.calibration(conn)
-        fb = review_games(hours)
-        us = us_sports_blocks(conn, hours)
-        nba_head, nba_games = nba_blocks(conn, hours)
-        par = parlay_blocks(conn, hours)
+        head, blocks = _sections(conn, hours)
     finally:
         conn.close()
-    head = [summary(fb, hours) if fb else f"🧾 <b>盤後分析</b>｜過去 {hours:g} 小時沒有可檢討的足球比賽"]
-    if nba_head:
-        head.append(nba_head)
     tail = ["🧠 <b>模型學習狀態</b>"] + (learn or ["（還沒有已結算的預測）"])
     if calib:
         tail += ["校準（模型給的機率 vs 實際發生比例，越接近越好）："] + calib
-    tail.append("模型會自動調整「市場 vs 歷史相似盤口」的權重：哪個比較準就多信哪個。")
-    return head + par + ["\n".join(tail)] + nba_games + [match_block(r) for r in fb] + us
+    return [head] + blocks + ["\n".join(tail)]

@@ -18,6 +18,7 @@ import pandas as pd
 
 import config
 import live
+import ui
 from backtest import load_strategies
 from core import get_json, log, now_utc, parse_iso, to_tpe
 from strategies import Strategy, lam_from_over, no_vig2, no_vig3, p_over, settle_handicap, trigger
@@ -51,6 +52,11 @@ ALIASES = {**{v: k for k, v in FOOTBALL_ZH.items()},
 def zh(name: str) -> str:
     z = FOOTBALL_ZH.get(name.lower())
     return f"{z}({name})" if z else name
+
+
+def zh_short(name: str) -> str:
+    """有中文名就只用中文（表格、清單用）。"""
+    return FOOTBALL_ZH.get(name.lower(), name)
 
 
 # =============================================================================
@@ -119,10 +125,10 @@ def blend(p_mkt: float, p_hist: float | None, n: int, shrink: float | None = Non
 
 
 def option_rows(options: list[dict], sport: str | None = None) -> tuple[list[str], dict | None]:
-    """options: {name, odds, p_mkt, p_hist, n} → 文字列與最佳選項。sport 決定用哪個學到的 shrink。"""
+    """options: {name, short, odds, p_mkt, p_hist, n} → （選項表格, 最佳選項）。sport 決定用哪個學到的 shrink。"""
     import learning
     shrink = learning.get_shrink(sport) if sport else SHRINK
-    lines, best = [], None
+    best = None
     for o in options:
         if not o.get("odds") or o.get("p_mkt") is None:
             continue
@@ -130,11 +136,17 @@ def option_rows(options: list[dict], sport: str | None = None) -> tuple[list[str
         o["p"], o["ev"], o["fair"] = p, p * o["odds"] - 1, 1 / p
         if best is None or o["ev"] > best["ev"]:
             best = o
-    for o in options:
-        if "fair" in o:
-            hist = f"｜歷史 {o['p_hist']*100:.0f}%" if o.get("p_hist") is not None else ""
-            lines.append(f"  {escape(o['name'])}：合理 <b>{o['fair']:.2f}</b>（市場 {o['p_mkt']*100:.0f}%{hist}）DK {o['odds']:.2f} → EV {o['ev']*100:+.1f}%")
-    return lines, best
+    return [ui.options_table(options, best)], best
+
+
+def compose(head: list[str], m: dict | None, signals: list[str], info: list[str]) -> str:
+    """單場分析的版面：結論（推薦 / 觀望）→ 訊號 → 全部選項表格 → 參考資料。"""
+    out = head + [""] + ui.recommend_block(m["best"] if m else None) + signals
+    if m and m.get("rows"):
+        out += ["", "<b>📊 全部選項</b>（合理 = 運彩賠率至少要這麼高才划算）", *m["rows"]]
+    if info:
+        out += ["", "<b>📚 參考資料</b>", *info]
+    return "\n".join(out)
 
 
 def _move_verdict(strats: list[Strategy], family: str, move: float, unit: str = "pp") -> str:
@@ -291,9 +303,11 @@ def football_model(g: dict) -> dict | None:
 
     home, away = g["home"], g["away"]
     options = [
-        {"key": ("1x2", "H"), "name": f"主勝 {zh(home)}", "odds": o.get("c_ml_home"), "p_mkt": pc[0], "p_hist": hist.get("H"), "n": n},
-        {"key": ("1x2", "D"), "name": "和局", "odds": o.get("c_ml_draw"), "p_mkt": pc[1], "p_hist": hist.get("D"), "n": n},
-        {"key": ("1x2", "A"), "name": f"客勝 {zh(away)}", "odds": o.get("c_ml_away"), "p_mkt": pc[2], "p_hist": hist.get("A"), "n": n},
+        {"key": ("1x2", "H"), "name": f"主勝 {zh(home)}", "short": "主勝", "odds": o.get("c_ml_home"), "p_mkt": pc[0],
+         "p_hist": hist.get("H"), "n": n},
+        {"key": ("1x2", "D"), "name": "和局", "short": "和局", "odds": o.get("c_ml_draw"), "p_mkt": pc[1], "p_hist": hist.get("D"), "n": n},
+        {"key": ("1x2", "A"), "name": f"客勝 {zh(away)}", "short": "客勝", "odds": o.get("c_ml_away"), "p_mkt": pc[2],
+         "p_hist": hist.get("A"), "n": n},
     ]
     if lam:
         options += [{"key": ("total", "over"), "name": f"大 {L:g} 球", "odds": o.get("c_over_odds"), "p_mkt": pOL,
@@ -301,9 +315,10 @@ def football_model(g: dict) -> dict | None:
                     {"key": ("total", "under"), "name": f"小 {L:g} 球", "odds": o.get("c_under_odds"), "p_mkt": 1 - pOL,
                      "p_hist": None if hist.get("overL") is None else 1 - hist["overL"], "n": n}]
     if sp is not None and p_sp:
-        options += [{"key": ("spread", "home"), "name": f"主 {sp:+g}", "odds": o.get("c_spread_home_odds"), "p_mkt": p_sp,
-                     "p_hist": hist.get("cover"), "n": n},
-                    {"key": ("spread", "away"), "name": f"客 {-sp:+g}", "odds": o.get("c_spread_away_odds"), "p_mkt": 1 - p_sp,
+        options += [{"key": ("spread", "home"), "name": f"主 {sp:+g}（{zh(home)}）", "short": f"主 {sp:+g}",
+                     "odds": o.get("c_spread_home_odds"), "p_mkt": p_sp, "p_hist": hist.get("cover"), "n": n},
+                    {"key": ("spread", "away"), "name": f"客 {-sp:+g}（{zh(away)}）", "short": f"客 {-sp:+g}",
+                     "odds": o.get("c_spread_away_odds"), "p_mkt": 1 - p_sp,
                      "p_hist": None if hist.get("cover") is None else 1 - hist["cover"], "n": n}]
     # 原始（等比例去水、未校準）機率一起記錄，讓 learning.py 用實戰結果檢驗校準有沒有幫助
     raw = {("1x2", "H"): pc_raw[0], ("1x2", "D"): pc_raw[1], ("1x2", "A"): pc_raw[2]}
@@ -323,8 +338,9 @@ def football_model(g: dict) -> dict | None:
 def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
     o = g["odds"]
     home, away = g["home"], g["away"]
-    lines = [f"⚽ {escape(g['league'])}｜{live.kickoff_str(g)}",
-             f"<b>{escape(zh(home))} vs {escape(zh(away))}</b>"]
+    head = [f"⚽ {escape(g['league'])}｜{live.kickoff_str(g)}",
+            f"<b>{escape(zh(home))} vs {escape(zh(away))}</b>"]
+    lines = []          # 參考資料
     summ = _summary(g)
     fh, fa = _form(summ, home), _form(summ, away)
     if fh or fa:
@@ -335,8 +351,7 @@ def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]
 
     m = football_model(g)
     if not m:
-        lines.append("（目前沒有盤口資料）")
-        return "\n".join(lines), None
+        return "\n".join(head + lines + ["（目前沒有盤口資料）"]), None
     pc, po, L, pOL, lam, lam_o, pO25 = m["pc"], m["po"], m["L"], m["pOL"], m["lam"], m["lam_o"], m["pO25"]
     sp, p_sp, n, hist = m["sp"], m["p_sp"], m["n"], m["hist"]
 
@@ -378,21 +393,7 @@ def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]
         conn.close()
     sig = [("⭐" if s.enabled else "☆") + s.title for s in strats
            if s.sport == "football" and s.live_source == "espn" and (s.enabled or s.weak) and trigger(s, f)]
-    if sig:
-        lines += [f"🔔 {escape(x)}" for x in sig]
-
-    lines.append("<b>評估</b>（運彩賠率 ≥ 合理賠率才有正期望值）")
-    lines += m["rows"]
-    lines.append(_verdict(m["best"]))
-    return "\n".join(lines), m["best"]
-
-
-def _verdict(best: dict | None) -> str:
-    if best and best["ev"] >= MIN_EDGE:
-        return f"👉 <b>相對最有價值：{escape(best['name'])}</b>（DK {best['odds']:.2f}，EV {best['ev']*100:+.1f}%；運彩 ≥ {best['fair']:.2f} 才划算）"
-    if best:
-        return f"👉 沒有明顯價值（最好的是 {escape(best['name'])}，EV {best['ev']*100:+.1f}%）；除非運彩賠率高於合理賠率，否則觀望"
-    return "👉 資料不足"
+    return compose(head, m, [f"🔔 {escape(x)}" for x in sig], lines), m["best"]
 
 
 # =============================================================================
@@ -408,8 +409,9 @@ def analyze_nba(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
                and r["player_id"] in keys]
     finally:
         conn.close()
-    lines = [f"🏀 NBA｜{live.kickoff_str(g)}",
-             f"<b>{escape(live.team_name(g, 'away'))} @ {escape(live.team_name(g, 'home'))}</b>"]
+    head = [f"🏀 NBA｜{live.kickoff_str(g)}",
+            f"<b>{escape(live.team_name(g, 'away'))} @ {escape(live.team_name(g, 'home'))}</b>"]
+    lines = []          # 參考資料
     rest = []
     for side in ("home", "away"):
         if f.get(f"{side}_rest") == 1:
@@ -419,8 +421,7 @@ def analyze_nba(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
     for r in inj:
         lines.append(f"🚑 {escape(r['name'])}（{r['team']}，{keys[r['player_id']][1]:.1f} 分）{escape(r['status'])}")
     if o.get("c_spread_home") is None:
-        lines.append("（目前沒有盤口資料）")
-        return "\n".join(lines), None
+        return "\n".join(head + lines + ["（目前沒有盤口資料）"]), None
     lines.append(f"<b>盤口（DK 開盤→現在）</b>\n  {escape(live.line_summary(g))}")
     sp, tot = o["c_spread_home"], o.get("c_total")
     if o.get("o_spread_home") is not None and abs(sp - o["o_spread_home"]) >= 1:
@@ -440,11 +441,7 @@ def analyze_nba(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
         lines.append(f"  主隊贏盤 {pct('cover')}｜大分 {pct('over')}｜主勝（校正後）{pct('win')}")
     sig = [("⭐" if s.enabled else "☆") + s.title for s in strats
            if s.sport == "nba" and s.live_source == "espn" and (s.enabled or s.weak) and trigger(s, f)]
-    lines += [f"🔔 {escape(x)}" for x in sig]
-    lines.append("<b>評估</b>（運彩賠率 ≥ 合理賠率才有正期望值）")
-    lines += m["rows"]
-    lines.append(_verdict(m["best"]))
-    return "\n".join(lines), m["best"]
+    return compose(head, m, [f"🔔 {escape(x)}" for x in sig], lines), m["best"]
 
 
 def nba_form_lines(g: dict, m: dict) -> list[str]:
@@ -689,9 +686,10 @@ def analyze_mlb(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
     o = g["odds"]
     home, away = live.team_name(g, "home"), live.team_name(g, "away")
     rec = g.get("records", {})
-    lines = [f"⚾ MLB {escape(g.get('note') or '')}｜{live.kickoff_str(g)}",
-             f"<b>{escape(away)} @ {escape(home)}</b>"
-             + (f"（{escape(rec.get('away', ''))} / {escape(rec.get('home', ''))}）" if rec else "")]
+    head = [f"⚾ MLB {escape(g.get('note') or '')}｜{live.kickoff_str(g)}",
+            f"<b>{escape(away)} @ {escape(home)}</b>"
+            + (f"（{escape(rec.get('away', ''))} / {escape(rec.get('home', ''))}）" if rec else "")]
+    lines = []          # 參考資料
     if g.get("series"):
         lines.append(f"系列賽：{escape(g['series'])}")
     probs = g.get("probables") or {}
@@ -712,8 +710,7 @@ def analyze_mlb(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
 
     m = mlb_model(g)
     if not m:
-        lines.append("（目前沒有盤口資料）")
-        return "\n".join(lines), None
+        return "\n".join(head + lines + ["（目前沒有盤口資料）"]), None
     lines.append(f"<b>盤口（DK 開盤→現在）</b>\n  {escape(live.line_summary(g))}")
     if espn_home is not None:
         lines.append(f"  ESPN 模型：主隊勝率 {espn_home*100:.0f}%（市場去水 {m['ph']*100:.0f}%）")
@@ -743,11 +740,7 @@ def analyze_mlb(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
         conn.close()
     sig = [("⭐" if s.enabled else "☆") + s.title for s in strats
            if s.sport == "mlb" and (s.enabled or s.weak) and trigger(s, f)]
-    lines += [f"🔔 {escape(x)}" for x in sig]
-    lines.append("<b>評估</b>（運彩賠率 ≥ 合理賠率才有正期望值）")
-    lines += m["rows"]
-    lines.append(_verdict(m["best"]))
-    return "\n".join(lines), m["best"]
+    return compose(head, m, [f"🔔 {escape(x)}" for x in sig], lines), m["best"]
 
 
 def game_model(g: dict) -> dict | None:
@@ -813,16 +806,22 @@ def league_report(games: list[dict], league: str, hours: float = 36) -> list[str
     sel = upcoming(games, hours, league=league)
     if not sel:
         return [f"未來 {hours:g} 小時沒有{league}比賽。"]
-    details, summary = [], []
+    details, recs, others = [], [], []
     for g in sel:
         text, best = analyze_game(g, strats)
         details.append(text)
-        tag = (f"✅ {escape(best['name'])}（EV {best['ev']*100:+.1f}%，運彩≥{best['fair']:.2f}）"
-               if best and best["ev"] >= MIN_EDGE else
-               f"➖ 觀望（最佳 {escape(best['name'])} EV {best['ev']*100:+.1f}%）" if best else "➖ 無盤口")
+        g["_best_ev"] = best["ev"] if best else None      # bot 的比賽按鈕會顯示評等
+        when = f"{to_tpe(parse_iso(g['kickoff'])):%m/%d %H:%M}"
         note = f" [{escape(g['note'])}]" if g.get("note") and g["sport"] == "mlb" else ""
-        summary.append(f"{to_tpe(parse_iso(g['kickoff'])):%m/%d %H:%M} {escape(game_title(g))}{note}\n   {tag}")
-    head = [f"🏆 <b>{escape(league)} 分析總表</b>（未來 {hours:g} 小時，{len(sel)} 場）", ""] + summary + [
-        "", "EV = 用 DK 現價計算的期望值；運彩賠率通常較低，請以「運彩 ≥ 合理賠率」為準。",
-        "估計勝率 = 市場去水機率 × 歷史相似盤口（偏向市場加權）。", live.DISCLAIMER]
+        if best and best["ev"] >= MIN_EDGE:
+            recs.append(f"{when} {escape(game_title(g))}{note}\n"
+                        f"　👉 <b>{escape(best['name'])}</b> @{best['odds']:.2f}｜📌 運彩 ≥ {best['fair']:.2f}")
+        else:
+            icon = ui.grade_icon(best["ev"]) if best else "⚪"
+            others.append(f"{icon} {when} {escape(game_title(g))}{note}")
+    head = [f"🏆 <b>{escape(league)} 分析總表</b>（未來 {hours:g} 小時，{len(sel)} 場）", ""]
+    head += ([f"🟢 <b>推薦（{len(recs)} 場）</b>"] + recs) if recs else ["🟢 <b>推薦</b>：這段時間沒有明顯有價值的選項"]
+    if others:
+        head += ["", f"<b>其他 {len(others)} 場</b>（🟡 接近公平：運彩賠率夠高才考慮｜🔴 偏貴：觀望）"] + others
+    head += ["", "📌 = 運彩賠率至少要這麼高才划算（DK 的價格通常比運彩好）", live.DISCLAIMER]
     return ["\n".join(head)] + details

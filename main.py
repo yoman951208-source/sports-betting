@@ -179,6 +179,41 @@ def cloud_once() -> None:
     run_due_jobs(daily_jobs())
 
 
+def preview(what: str) -> None:
+    """印出各種訊息的樣子並檢查 HTML 標籤有沒有配對（what = all / analysis / review / best）。"""
+    import re
+    import analyze
+    import live
+    import picks
+    import review
+    games = live.fetch_games()
+    out = []
+    if what in ("all", "analysis"):
+        seen = set()
+        for g in analyze.upcoming(games, 48):
+            if g["sport"] not in seen and g["odds"]:
+                seen.add(g["sport"])
+                out.append(analyze.analyze_game(g)[0])
+        lg = next((g["league"] for g in analyze.upcoming(games, 36) if g["sport"] == "football"), None)
+        if lg:
+            out.append(analyze.league_report(games, lg, 36)[0])
+    if what in ("all", "review"):
+        out += review.build(36)
+    if what in ("all", "best"):
+        out += picks.report(games, 24)
+    for text in out:
+        stack = []
+        for close, tag in re.findall(r"<(/?)(b|i|pre|code)>", text):
+            if not close:
+                stack.append(tag)
+            elif not stack or stack.pop() != tag:
+                log.error("HTML 標籤不配對：%s", text[:80])
+                break
+        if stack:
+            log.error("HTML 標籤沒關：%s", text[:80])
+    send_blocks(out, dry_run=True)
+
+
 def run_command() -> None:
     """GitHub Actions（command.yml）：處理一則 Telegram 訊息或按鈕。內容由 Cloudflare Worker 透過環境變數傳入。"""
     import os
@@ -187,6 +222,9 @@ def run_command() -> None:
     if not payload:
         return
     log.info("雲端指令：%s %s", kind, payload[:60])
+    if kind == "preview":       # 只把訊息印在 Actions log（檢查排版用，不發 Telegram）
+        preview(payload)
+        return
     try:
         if kind == "callback":
             bot.handle_callback(payload)

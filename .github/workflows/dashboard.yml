@@ -1,0 +1,52 @@
+# 戰績儀表板：每天三次把資料庫的戰績做成網頁，發布到 GitHub Pages
+# 網址：https://yoman951208-source.github.io/sports-betting/
+name: dashboard
+
+on:
+  schedule:
+    - cron: "25 2,5,15 * * *"   # 台灣時間 10:25（盤後分析後）、13:25（今日推薦後）、23:25
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TZ: Asia/Taipei
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restore state from data branch
+        run: |
+          mkdir -p data
+          git fetch -q --depth=1 origin data
+          git show FETCH_HEAD:betting.db > data/betting.db
+
+      - name: Build page
+        run: python main.py dashboard
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

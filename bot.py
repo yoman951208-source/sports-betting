@@ -58,6 +58,8 @@ HELP = """🤖 <b>運彩分析機器人</b>
 LEAGUE_WORDS = {"ucl": "歐冠", "uel": "歐霸", "epl": "英超", "mlb": "MLB", "美職": "MLB", "棒球": "MLB", "季後賽": "MLB",
                 **{v[1]: v[1] for v in config.FOOTBALL_LEAGUES.values()}, **{v: v for v in config.FOOTBALL_CUPS.values()}}
 
+DASHBOARD_URL = f"https://{config.GITHUB_REPO.split('/')[0]}.github.io/{config.GITHUB_REPO.split('/')[1]}/"
+
 _DETAIL: dict[str, tuple[str, float]] = {}   # game_id → (分析文字, 時間)：聯賽總表算過的直接給，點按鈕秒回
 
 
@@ -183,6 +185,7 @@ def handle(text: str) -> None:
             live.weekly_report(conn, False)
         finally:
             conn.close()
+        send_telegram(f"📊 <b>戰績網頁</b>（圖表、每張最推薦的結果，每天更新）\n{DASHBOARD_URL}")
         return
 
     games = live.fetch_games()

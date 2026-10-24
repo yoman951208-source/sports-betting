@@ -7,3 +7,4 @@ __pycache__/
 worker/node_modules/
 worker/.wrangler/
 research/out/
+site/

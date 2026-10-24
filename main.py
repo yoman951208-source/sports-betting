@@ -316,7 +316,7 @@ def loop() -> None:
 def main() -> int:
     ap = argparse.ArgumentParser(description="運彩分析機器人（足球 + NBA）")
     ap.add_argument("command", choices=["backtest", "run", "digest", "report", "oddsapi", "strategies", "test-notify", "loop",
-                                        "analyze", "league", "review", "parlay", "cloud", "bot", "sync", "best", "command"])
+                                        "analyze", "league", "review", "parlay", "cloud", "bot", "sync", "best", "command", "dashboard"])
     ap.add_argument("query", nargs="?", default="", help="analyze：隊名；league：聯賽名稱（如 歐冠）")
     ap.add_argument("--hours", type=float, default=36, help="league：分析未來幾小時的比賽")
     ap.add_argument("--send", action="store_true", help="backtest：把報告發到 Telegram")
@@ -335,6 +335,9 @@ def main() -> int:
         cloud_once()
     elif a.command == "command":
         run_command()
+    elif a.command == "dashboard":
+        import dashboard
+        print(dashboard.build())
     elif a.command == "bot":
         bot_mode()
     elif a.command == "sync":

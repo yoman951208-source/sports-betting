@@ -12,7 +12,7 @@ const MENU = {
     [{ text: "🏆 今日推薦" }, { text: "🎟️ 串關" }],
     [{ text: "🏀 NBA" }, { text: "⚾ MLB" }, { text: "⚽ 足球" }],
     [{ text: "🧾 賽後檢討" }, { text: "📅 今日總覽" }],
-    [{ text: "📒 戰績" }, { text: "❓ 說明" }],
+    [{ text: "💱 運彩比價" }, { text: "📒 戰績" }, { text: "❓ 說明" }],
   ],
   resize_keyboard: true,
   is_persistent: true,
@@ -26,6 +26,7 @@ const HELP = `🤖 <b>運彩分析機器人</b>
 🎟️ <b>串關</b>：更多二串一、三串一組合
 🏀 <b>NBA</b>／⚾ <b>MLB</b>／⚽ <b>足球</b>：先看總表，<b>點比賽按鈕</b>才展開詳細分析
 🧾 <b>賽後檢討</b>　📅 <b>今日總覽</b>　📒 <b>戰績</b>
+💱 <b>運彩比價</b>：直接打運彩的賠率，例如 <code>湖人 1.75</code>、<code>湖人 -3.5 1.80</code>（好幾行 = 串關）
 
 也可以直接打字：隊名（曼城、皇馬、湖人、LAL）、聯賽（歐冠、英超）
 
@@ -33,6 +34,15 @@ const HELP = `🤖 <b>運彩分析機器人</b>
 判斷原則只有一條：<b>運彩賠率 ≥ 合理賠率才下</b>，低於就跳過，只用小注。`;
 
 const INSTANT = new Set(["/start", "/help", "/menu", "❓ 說明", "說明", "選單", "指令"]);
+
+const HOWTO = `💱 <b>運彩賠率比價</b>
+把運彩開的賠率直接打給我（一行一關，好幾行就算成串關）：
+<code>湖人 1.75</code>　→ 湖人不讓分（足球是「那隊勝」）
+<code>湖人 -3.5 1.80</code>　→ 湖人讓 3.5（也可寫 讓3.5；受讓寫 +3.5 或 受讓3.5）
+<code>湖人 大228.5 1.75</code>　→ 那場大分（小分寫「小」）
+<code>利物浦 和 3.40</code>　→ 足球和局
+我會回：估計勝率、合理賠率、期望值，值不值得買。`;
+const HOWTO_KEYS = new Set(["💱 運彩比價", "比價", "運彩比價", "/odds"]);
 
 export default {
   async fetch(request, env) {
@@ -72,6 +82,11 @@ export default {
     // 說明／選單：秒回
     if (kind === "message" && INSTANT.has(payload.split("@")[0])) {
       await tg("sendMessage", { chat_id: chatId, text: HELP, parse_mode: "HTML", reply_markup: MENU });
+      return new Response("ok");
+    }
+
+    if (kind === "message" && HOWTO_KEYS.has(payload)) {
+      await tg("sendMessage", { chat_id: chatId, text: HOWTO, parse_mode: "HTML" });
       return new Response("ok");
     }
 

@@ -24,14 +24,14 @@ MENU = {
         [{"text": "🏆 今日推薦"}, {"text": "🎟️ 串關"}],
         [{"text": "🏀 NBA"}, {"text": "⚾ MLB"}, {"text": "⚽ 足球"}],
         [{"text": "🧾 賽後檢討"}, {"text": "📅 今日總覽"}],
-        [{"text": "📒 戰績"}, {"text": "❓ 說明"}],
+        [{"text": "💱 運彩比價"}, {"text": "📒 戰績"}, {"text": "❓ 說明"}],
     ],
     "resize_keyboard": True,
     "is_persistent": True,
     "input_field_placeholder": "按下面的按鈕，或輸入隊名（例：湖人、曼城）",
 }
 BUTTONS = {"🏆 今日推薦": "推薦", "🎟️ 串關": "串關", "🏀 NBA": "nba", "⚾ MLB": "mlb", "⚽ 足球": "足球",
-           "🧾 賽後檢討": "賽後", "📅 今日總覽": "today", "📒 戰績": "report", "❓ 說明": "help"}
+           "🧾 賽後檢討": "賽後", "📅 今日總覽": "today", "📒 戰績": "report", "❓ 說明": "help", "💱 運彩比價": "比價"}
 BEST_BUTTONS = {"inline_keyboard": [
     [{"text": "🔄 重新整理", "callback_data": "c:推薦"}],
     [{"text": "🎟️ 更多串關", "callback_data": "c:串關 全部"}, {"text": "📒 戰績", "callback_data": "c:report"}],
@@ -49,6 +49,7 @@ HELP = """🤖 <b>運彩分析機器人</b>
 🏀 <b>NBA</b>／⚾ <b>MLB</b>／⚽ <b>足球</b>：先看總表，<b>點比賽按鈕</b>才展開詳細分析
 🧾 <b>賽後檢討</b>：賽前預測 vs 實際結果
 📅 <b>今日總覽</b>　📒 <b>戰績</b>
+💱 <b>運彩比價</b>：直接打運彩的賠率，例如 <code>湖人 1.75</code>、<code>湖人 -3.5 1.80</code>、<code>曼城 大2.5 1.85</code>（好幾行 = 串關）
 
 也可以直接打字：隊名（曼城、皇馬、湖人、LAL）、聯賽（歐冠、英超、西甲）
 
@@ -172,6 +173,10 @@ def handle(text: str) -> None:
         send_telegram(head)
         send_blocks(blocks)
         return
+    if cmd in ("比價", "運彩比價", "odds"):
+        import oddscheck
+        send_telegram(oddscheck.HOWTO)
+        return
     if cmd in ("report", "成績", "戰績"):
         conn = db()
         try:
@@ -181,6 +186,10 @@ def handle(text: str) -> None:
         return
 
     games = live.fetch_games()
+    import oddscheck
+    if oddscheck.looks_like(t):          # 「隊名 + 賠率」→ 運彩比價
+        send_blocks(oddscheck.report(games, t))
+        return
     if cmd in ("football", "足球"):
         _football_picker(games)
         return

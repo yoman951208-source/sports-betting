@@ -15,7 +15,7 @@ from itertools import combinations
 
 import live
 import ui
-from analyze import game_model, game_title, upcoming
+from analyze import game_model, game_title, in_focus, upcoming
 from backtest import load_strategies
 from core import db
 from strategies import no_vig2
@@ -95,7 +95,7 @@ def candidates(games: list[dict], hours: float) -> list[dict]:
             continue
         _signals(g, m, strats)
         for o in m["options"]:
-            if not SINGLE_ODDS[0] <= o["odds"] <= SINGLE_ODDS[1] or o["key"][0] not in m.get("focus", (o["key"][0],)):
+            if not SINGLE_ODDS[0] <= o["odds"] <= SINGLE_ODDS[1] or not in_focus(m, o):
                 continue
             s = o.get("signal")
             out.append({**o, "g": g, "m": m, "signal": s, "score": o["ev"] + (SIGNAL_BONUS if s else 0)})

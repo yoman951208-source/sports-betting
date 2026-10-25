@@ -405,10 +405,18 @@ def football_model(g: dict) -> dict | None:
     return m
 
 
-def pick_best(m: dict) -> dict | None:
-    """期望值最高的選項；足球只從大小、讓分裡挑（不讓分的賠率太低，10/25 使用者要求以大小、讓分為主）。"""
+FOOTBALL_1X2_MIN_ODDS = 1.5      # 足球以大小、讓球為主；不讓分賠率至少這麼高才推薦（使用者 10/25）
+
+
+def in_focus(m: dict, o: dict) -> bool:
+    """這個選項能不能進推薦、最推薦、串關。"""
     focus = m.get("focus")
-    pool = [o for o in m["options"] if not focus or o["key"][0] in focus] or m["options"]
+    return not focus or o["key"][0] in focus or (o["key"][0] == "1x2" and o["odds"] >= FOOTBALL_1X2_MIN_ODDS)
+
+
+def pick_best(m: dict) -> dict | None:
+    """期望值最高、而且 in_focus 的選項。"""
+    pool = [o for o in m["options"] if in_focus(m, o)] or m["options"]
     return max(pool, key=lambda o: o["ev"]) if pool else None
 
 

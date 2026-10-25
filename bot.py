@@ -163,8 +163,9 @@ def handle(text: str) -> None:
     if cmd in ("parlay", "串關", "串"):
         import parlay
         a = arg.strip()
-        lg = None if a in ("", "全部") else LEAGUE_WORDS.get(a, a)
-        msgs = parlay.report(live.fetch_games(), lg, 24)
+        sport = "football" if a == "足球" else None
+        lg = None if a in ("", "全部", "足球") else LEAGUE_WORDS.get(a, a)
+        msgs = parlay.report(live.fetch_games(), lg, 24, sport=sport)
         send_telegram(msgs[0])
         send_blocks(msgs[1:], reply_markup={"inline_keyboard": [[{"text": "🏆 今日推薦", "callback_data": "c:推薦"}]]})
         return

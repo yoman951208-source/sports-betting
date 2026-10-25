@@ -17,7 +17,7 @@ from html import escape
 from itertools import combinations
 
 import live
-from analyze import game_model, game_title, upcoming
+from analyze import game_model, game_title, in_focus, upcoming
 from core import parse_iso, to_tpe
 
 LEG_ODDS = (1.30, 4.5)     # 單關賠率範圍（太低沒意義、太高命中率太低）
@@ -37,16 +37,16 @@ CREATE TABLE IF NOT EXISTS parlays (
 """
 
 
-def candidate_legs(games: list[dict], league: str | None, hours: float) -> list[dict]:
+def candidate_legs(games: list[dict], league: str | None, hours: float, sport: str | None = None) -> list[dict]:
     legs = []
-    for g in upcoming(games, hours, league=league):
+    for g in upcoming(games, hours, league=league, sport=sport):
         if g["sport"] not in ("football", "mlb", "nba"):
             continue
         m = game_model(g)
         if not m:
             continue
         for o in m["options"]:
-            if LEG_ODDS[0] <= o["odds"] <= LEG_ODDS[1] and o["ev"] >= LEG_MIN_EV and o["key"][0] in m.get("focus", (o["key"][0],)):
+            if LEG_ODDS[0] <= o["odds"] <= LEG_ODDS[1] and o["ev"] >= LEG_MIN_EV and in_focus(m, o):
                 legs.append({**o, "g": g, "m": m})
     return legs
 
@@ -170,9 +170,10 @@ def record_lines(conn, days: int | None = None, label_prefix: str | None = None)
     return [f"{len(rows)} 張｜中 {w} 張（模型預期約 {exp:.1f} 張）｜{units:+.2f} 注（DK 賠率，每張 1 注）"]
 
 
-def report(games: list[dict], league: str | None = "歐冠", hours: float = 24, save_conn=None) -> list[str]:
-    legs = candidate_legs(games, league, hours)
-    title = league or "全部（足球 + MLB + NBA）"
+def report(games: list[dict], league: str | None = "歐冠", hours: float = 24, save_conn=None,
+           sport: str | None = None) -> list[str]:
+    legs = candidate_legs(games, league, hours, sport)
+    title = league or ("足球" if sport == "football" else "全部（足球 + MLB + NBA）")
     n_games = len({l["g"]["game_id"] for l in legs})
     if n_games < 2:
         return [f"未來 {hours:g} 小時{title}可用的比賽不足 2 場，無法組串關。"]

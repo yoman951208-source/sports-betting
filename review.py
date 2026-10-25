@@ -129,7 +129,12 @@ def football_section(rs: list[dict]) -> str | None:
             league = g["league"]
             lines += ["", f"<b>【{escape(league)}】</b>"]
         upset = " 🔥爆冷" if r["p_mkt"] < UPSET_P else ""
-        lines.append(f"{escape(zh_short(g['home']))} <b>{g['home_score']}-{g['away_score']}</b> {escape(zh_short(g['away']))}{upset}")
+        gm = r["m"].get("goals")
+        pred = ""
+        if gm:
+            top = gm["top"][0][0]
+            pred = f"（預測 {top}{' 🎯猜中' if top == f'{g['home_score']}-{g['away_score']}' else ''}）"
+        lines.append(f"{escape(zh_short(g['home']))} <b>{g['home_score']}-{g['away_score']}</b> {escape(zh_short(g['away']))}{upset}{pred}")
         if b:
             lines.append(_pick_line(b.get("short", b["name"]), b["odds"], b["ev"], b["profit"]))
     return "\n".join(lines)

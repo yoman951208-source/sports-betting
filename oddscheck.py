@@ -125,17 +125,11 @@ def leg_fair(g: dict, m: dict, leg: dict) -> tuple[float | None, str]:
         if leg["market"] == "draw":
             p = (_option(m, ("1x2", "D")) or {}).get("p")
             return (1 / p if p else None), "和局"
-        lh, la = analyze.team_lambdas(pc, lam)
-        mat = analyze._score_matrix(lh, la)
-        dist: dict[float, float] = {}
-        for i, row in enumerate(mat):
-            for j, p in enumerate(row):
-                if leg["market"] == "total":
-                    k = (i + j - leg["line"]) if leg["pick"] == "over" else (leg["line"] - i - j)
-                    dist[k] = dist.get(k, 0) + p
-                else:
-                    k = (i - j) if side == "home" else (j - i)
-                    dist[k] = dist.get(k, 0) + p
+        gm = m.get("goals") or analyze.goal_model(pc, lam)
+        if leg["market"] == "total":
+            dist = {(n - leg["line"]) if leg["pick"] == "over" else (leg["line"] - n): p for n, p in gm["total"].items()}
+        else:
+            dist = {(k if side == "home" else -k): p for k, p in gm["margin"].items()}
         if leg["market"] == "total":
             return _fair_from_dist(dist, 0.0), f"{'大' if leg['pick'] == 'over' else '小'} {leg['line']:g} 球"
         return _fair_from_dist(dist, leg["line"]), f"{escape(live.team_name(g, side))} {leg['line']:+g}"

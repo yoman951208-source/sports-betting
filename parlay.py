@@ -46,7 +46,7 @@ def candidate_legs(games: list[dict], league: str | None, hours: float) -> list[
         if not m:
             continue
         for o in m["options"]:
-            if LEG_ODDS[0] <= o["odds"] <= LEG_ODDS[1] and o["ev"] >= LEG_MIN_EV:
+            if LEG_ODDS[0] <= o["odds"] <= LEG_ODDS[1] and o["ev"] >= LEG_MIN_EV and o["key"][0] in m.get("focus", (o["key"][0],)):
                 legs.append({**o, "g": g, "m": m})
     return legs
 

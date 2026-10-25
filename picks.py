@@ -95,7 +95,7 @@ def candidates(games: list[dict], hours: float) -> list[dict]:
             continue
         _signals(g, m, strats)
         for o in m["options"]:
-            if not SINGLE_ODDS[0] <= o["odds"] <= SINGLE_ODDS[1]:
+            if not SINGLE_ODDS[0] <= o["odds"] <= SINGLE_ODDS[1] or o["key"][0] not in m.get("focus", (o["key"][0],)):
                 continue
             s = o.get("signal")
             out.append({**o, "g": g, "m": m, "signal": s, "score": o["ev"] + (SIGNAL_BONUS if s else 0)})

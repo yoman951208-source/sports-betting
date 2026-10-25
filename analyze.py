@@ -159,7 +159,7 @@ def apply_signals(g: dict, m: dict | None, strats: list[Strategy], f: dict) -> l
             p = min(0.97, o["p_mkt"] + up)
             o.update(p=p, ev=p * o["odds"] - 1, fair=1 / p, signal=s.title)
     if m and m["options"]:
-        m["best"] = max(m["options"], key=lambda x: x["ev"])
+        m["best"] = pick_best(m)
         m["rows"] = [ui.options_table(m["options"], m["best"])]
     return out
 
@@ -168,7 +168,7 @@ def compose(head: list[str], m: dict | None, signals: list[str], info: list[str]
     """單場分析的版面：結論（推薦 / 觀望）→ 訊號 → 全部選項表格 → 參考資料。"""
     out = head + [""] + ui.recommend_block(m["best"] if m else None) + signals
     if m and m.get("rows"):
-        out += ["", "<b>📊 全部選項</b>（合理 = 運彩賠率至少要這麼高才划算）", *m["rows"]]
+        out += ["", "<b>📊 全部選項</b>（合理 = 運彩賠率至少要這麼高才划算）", *m["rows"], *m.get("extra", [])]
     if info:
         out += ["", "<b>📚 參考資料</b>", *info]
     return "\n".join(out)
@@ -269,21 +269,59 @@ def handicap_cover(lh: float, la: float, line: float) -> float:
     return win / (win + lose)
 
 
-def alt_lines(pc: tuple, lam: float) -> list[str]:
-    """運彩常見盤口的合理賠率（Poisson 近似）。"""
-    out = []
-    totals = sorted({max(0.5, round(lam) - 0.5), round(lam) + 0.5})
-    out.append("大小 " + "｜".join(f"{t:g}球 大{1/p_over(lam, t):.2f}/小{1/(1-p_over(lam, t)):.2f}" for t in totals))
+RHO = -0.08                      # Dixon-Coles 低比分修正：純 Poisson 低估和局（22.9% vs 實際 26.1%）；3 季比分 log loss 在 -0.05~-0.10 最低
+MARGIN_CAL = (-0.045, 1.029)      # 淨勝 ≥2 球機率的 logit 校準：純 Poisson 高估大比分（熱門讓 1.5 贏 31% vs 實際 28%）
+                                  # research/goals_calibration.py：8 季逐季留一 7 季改善（總進球同樣校準只有 4 季 → 不用）
+
+
+def goal_model(pc: tuple, lam: float) -> dict:
+    """比分模型：兩隊預期進球 → 各比分機率（Dixon-Coles 修正 + 淨勝 ≥2 球校準）。
+    回傳 lh、la、top（最可能的 3 個比分）、margin {主隊淨勝: 機率}、total {總進球: 機率}。"""
     lh, la = team_lambdas(pc, lam)
+    mat = _score_matrix(lh, la)
+    mat[0][0] *= 1 - lh * la * RHO
+    mat[0][1] *= 1 + lh * RHO
+    mat[1][0] *= 1 + la * RHO
+    mat[1][1] *= 1 - RHO
+    s = sum(map(sum, mat))
+    margin, total, cells = {}, {}, []
+    for i, row in enumerate(mat):
+        for j, p in enumerate(row):
+            p /= s
+            margin[i - j] = margin.get(i - j, 0.0) + p
+            total[i + j] = total.get(i + j, 0.0) + p
+            cells.append((p, i, j))
+    a, b = MARGIN_CAL
+    for sign in (1, -1):      # 各方向「贏 ≥k 球」的累積機率：k ≥ 2 才校準（贏 ≥1 球 = 勝率，維持跟市場一致）
+        kmax = max(k * sign for k in margin)
+        surv = {k: sum(p for m, p in margin.items() if m * sign >= k) for k in range(1, kmax + 2)}
+        for k in range(2, kmax + 1):
+            x = min(max(surv[k], 1e-9), 1 - 1e-9)
+            surv[k] = 1 / (1 + math.exp(-(a + b * math.log(x / (1 - x)))))
+        for k in range(1, kmax + 1):
+            margin[k * sign] = max(0.0, surv[k] - surv[k + 1])
+    top = [(f"{i}-{j}", p) for p, i, j in sorted(cells, reverse=True)[:3]]
+    return {"lh": lh, "la": la, "top": top, "margin": margin, "total": total}
+
+
+def score_line(gm: dict) -> str:
+    return (f"🎯 <b>比分預測</b>：預期進球 主 {gm['lh']:.1f} : 客 {gm['la']:.1f}｜最可能 "
+            + "、".join(f"{s}（{p*100:.0f}%）" for s, p in gm["top"]))
+
+
+def line_table(gm: dict, pc: tuple) -> str:
+    """運彩常見的大小、讓球盤口的合理賠率（比分模型換算）。"""
+    rows = []
+    lam = gm["lh"] + gm["la"]
+    for L in (1.5, 2.5, 3.5) + ((4.5,) if lam >= 3 else ()):
+        p = sum(v for n, v in gm["total"].items() if n > L)
+        rows += [[f"{p*100:.0f}%", f"{1/p:.2f}", f"大 {L:g}"], [f"{(1-p)*100:.0f}%", f"{1/(1-p):.2f}", f"小 {L:g}"]]
     fav_home = pc[0] >= pc[2]
-    hcp = []
-    for k in ((1.5, 2.5) if max(pc[0], pc[2]) >= 0.65 else (1.5,)):
-        line = -k if fav_home else k            # 主隊的讓分
-        p = handicap_cover(lh, la, line)
-        fav_p = p if fav_home else 1 - p
-        hcp.append(f"{'主' if fav_home else '客'}讓{k:g} {1/fav_p:.2f}/受讓 {1/(1-fav_p):.2f}")
-    out.append("讓球 " + "｜".join(hcp))
-    return out
+    fav, dog = ("主", "客") if fav_home else ("客", "主")
+    for k in (1.5, 2.5) if max(pc[0], pc[2]) >= 0.55 else (1.5,):
+        p = sum(v for m, v in gm["margin"].items() if (m if fav_home else -m) > k)
+        rows += [[f"{p*100:.0f}%", f"{1/p:.2f}", f"{fav}讓 {k:g}"], [f"{(1-p)*100:.0f}%", f"{1/(1-p):.2f}", f"{dog}受讓 {k:g}"]]
+    return ui.table(["勝率", "合理", "運彩盤口"], rows, right=(0, 1))
 
 
 def football_model(g: dict) -> dict | None:
@@ -327,13 +365,7 @@ def football_model(g: dict) -> dict | None:
             hist["cover"] = (dec > 0).mean() if len(dec) else None
 
     home, away = g["home"], g["away"]
-    options = [
-        {"key": ("1x2", "H"), "name": f"主勝 {zh(home)}", "short": "主勝", "odds": o.get("c_ml_home"), "p_mkt": pc[0],
-         "p_hist": hist.get("H"), "n": n},
-        {"key": ("1x2", "D"), "name": "和局", "short": "和局", "odds": o.get("c_ml_draw"), "p_mkt": pc[1], "p_hist": hist.get("D"), "n": n},
-        {"key": ("1x2", "A"), "name": f"客勝 {zh(away)}", "short": "客勝", "odds": o.get("c_ml_away"), "p_mkt": pc[2],
-         "p_hist": hist.get("A"), "n": n},
-    ]
+    options = []
     if lam:
         options += [{"key": ("total", "over"), "name": f"大 {L:g} 球", "odds": o.get("c_over_odds"), "p_mkt": pOL,
                      "p_hist": hist.get("overL"), "n": n},
@@ -345,6 +377,13 @@ def football_model(g: dict) -> dict | None:
                     {"key": ("spread", "away"), "name": f"客 {-sp:+g}（{zh(away)}）", "short": f"客 {-sp:+g}",
                      "odds": o.get("c_spread_away_odds"), "p_mkt": 1 - p_sp,
                      "p_hist": None if hist.get("cover") is None else 1 - hist["cover"], "n": n}]
+    options += [
+        {"key": ("1x2", "H"), "name": f"主勝 {zh(home)}", "short": "主勝", "odds": o.get("c_ml_home"), "p_mkt": pc[0],
+         "p_hist": hist.get("H"), "n": n},
+        {"key": ("1x2", "D"), "name": "和局", "short": "和局", "odds": o.get("c_ml_draw"), "p_mkt": pc[1], "p_hist": hist.get("D"), "n": n},
+        {"key": ("1x2", "A"), "name": f"客勝 {zh(away)}", "short": "客勝", "odds": o.get("c_ml_away"), "p_mkt": pc[2],
+         "p_hist": hist.get("A"), "n": n},
+    ]
     # 原始（等比例去水、未校準）機率一起記錄，讓 learning.py 用實戰結果檢驗校準有沒有幫助
     raw = {("1x2", "H"): pc_raw[0], ("1x2", "D"): pc_raw[1], ("1x2", "A"): pc_raw[2]}
     q = no_vig2(o.get("c_over_odds"), o.get("c_under_odds"))
@@ -355,9 +394,22 @@ def football_model(g: dict) -> dict | None:
         raw[("spread", "home")], raw[("spread", "away")] = q, 1 - q
     for x in options:
         x["p_raw"] = raw.get(x["key"], x["p_mkt"])
-    rows, best = option_rows(options, sport="football")
-    return {"pc": pc, "po": po, "L": L, "pOL": pOL, "lam": lam, "lam_o": lam_o, "pO25": pO25, "sp": sp, "p_sp": p_sp,
-            "n": n, "hist": hist, "options": [x for x in options if "p" in x], "rows": rows, "best": best}
+    option_rows(options, sport="football")
+    m = {"pc": pc, "po": po, "L": L, "pOL": pOL, "lam": lam, "lam_o": lam_o, "pO25": pO25, "sp": sp, "p_sp": p_sp,
+         "n": n, "hist": hist, "options": [x for x in options if "p" in x], "focus": ("total", "spread"),
+         "goals": goal_model(pc, lam) if lam else None}
+    m["best"] = pick_best(m)
+    m["rows"] = [ui.options_table(m["options"], m["best"])]
+    if m["goals"]:
+        m["extra"] = ["", "<b>📐 運彩常見盤口的合理賠率</b>（比分模型換算，運彩 ≥ 合理才划算）", line_table(m["goals"], pc)]
+    return m
+
+
+def pick_best(m: dict) -> dict | None:
+    """期望值最高的選項；足球只從大小、讓分裡挑（不讓分的賠率太低，10/25 使用者要求以大小、讓分為主）。"""
+    focus = m.get("focus")
+    pool = [o for o in m["options"] if not focus or o["key"][0] in focus] or m["options"]
+    return max(pool, key=lambda o: o["ev"]) if pool else None
 
 
 def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]:
@@ -379,6 +431,9 @@ def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]
         return "\n".join(head + lines + ["（目前沒有盤口資料）"]), None
     pc, po, L, pOL, lam, lam_o, pO25 = m["pc"], m["po"], m["L"], m["pOL"], m["lam"], m["lam_o"], m["pO25"]
     sp, p_sp, n, hist = m["sp"], m["p_sp"], m["n"], m["hist"]
+    if m["goals"]:
+        head.append(score_line(m["goals"]))
+        g["_pred"] = f"預測 {m['goals']['top'][0][0]}｜大2.5 {sum(v for k, v in m['goals']['total'].items() if k > 2.5)*100:.0f}%"
 
     lines.append("<b>盤口（DK 開盤→現在，去水機率）</b>")
     lines.append("  勝/和/負 " + " / ".join(f"{a*100:.0f}→{b*100:.0f}%" for a, b in zip(po or pc, pc))
@@ -389,9 +444,6 @@ def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]
     p_sp = no_vig2(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"))
     if sp is not None and p_sp:
         lines.append(f"  讓球 主 {sp:+g}（主 {o['c_spread_home_odds']:.2f} / 客 {o['c_spread_away_odds']:.2f}）")
-    if lam:
-        lines.append("<b>運彩其他盤口的合理賠率</b>（Poisson 近似，運彩 ≥ 這個才划算）")
-        lines += [f"  {escape(x)}" for x in alt_lines(pc, lam)]
 
     # 盤口變化 vs 回測
     if po:
@@ -833,12 +885,13 @@ def league_report(games: list[dict], league: str, hours: float = 36) -> list[str
         g["_best_ev"] = best["ev"] if best else None      # bot 的比賽按鈕會顯示評等
         when = f"{to_tpe(parse_iso(g['kickoff'])):%m/%d %H:%M}"
         note = f" [{escape(g['note'])}]" if g.get("note") and g["sport"] == "mlb" else ""
+        pred = f"\n　🎯 {g['_pred']}" if g.get("_pred") else ""
         if best and best["ev"] >= MIN_EDGE:
             recs.append(f"{when} {escape(game_title(g))}{note}\n"
-                        f"　👉 <b>{escape(best['name'])}</b> @{best['odds']:.2f}｜📌 運彩 ≥ {best['fair']:.2f}")
+                        f"　👉 <b>{escape(best['name'])}</b> @{best['odds']:.2f}｜📌 運彩 ≥ {best['fair']:.2f}{pred}")
         else:
             icon = ui.grade_icon(best["ev"]) if best else "⚪"
-            others.append(f"{icon} {when} {escape(game_title(g))}{note}")
+            others.append(f"{icon} {when} {escape(game_title(g))}{note}{pred}")
     head = [f"🏆 <b>{escape(league)} 分析總表</b>（未來 {hours:g} 小時，{len(sel)} 場）", ""]
     head += ([f"🟢 <b>推薦（{len(recs)} 場）</b>"] + recs) if recs else ["🟢 <b>推薦</b>：這段時間沒有明顯有價值的選項"]
     if others:

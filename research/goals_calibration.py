@@ -9,6 +9,8 @@ fb = data_football.load_history().dropna(subset=["c_avg_h", "c_avg_d", "c_avg_a"
 E = {"m": [], "t": []}
 for r in fb.itertuples():
     pc = cal.power_devig([r.c_avg_h, r.c_avg_d, r.c_avg_a]); po = cal.power_devig([r.c_avg_over, r.c_avg_under])
+    if not pc or not po:
+        continue
     lh, la = analyze.team_lambdas(pc, lam_from_over(po[0], 2.5))
     m = np.array(analyze._score_matrix(lh, la))
     m[0, 0] *= 1 - lh * la * RHO; m[0, 1] *= 1 + lh * RHO; m[1, 0] *= 1 + la * RHO; m[1, 1] *= 1 - RHO; m /= m.sum()

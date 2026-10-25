@@ -144,6 +144,8 @@ def handle(text: str) -> None:
     import live
 
     t = BUTTONS.get(text.strip(), text.strip())
+    if t.endswith("串關") and len(t) > 2 and " " not in t:   # 「NBA串關」「足球串關」→「串關 NBA」
+        t = "串關 " + t[:-2]
     cmd, _, arg = t.lstrip("/").partition(" ")
     cmd = cmd.split("@")[0].lower()
     if cmd in ("start", "help", "說明", "指令", "menu", "選單"):

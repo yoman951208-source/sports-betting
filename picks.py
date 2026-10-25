@@ -148,6 +148,36 @@ def _parlay_block(t: dict, title: str) -> str:
     return "\n".join(lines)
 
 
+TOP5 = ["英超", "西甲", "義甲", "德甲", "法甲"]
+
+
+def top5_report(games: list[dict], hours: float = 24) -> list[str]:
+    """五大聯賽：每場一個最推薦選項（足球以大小、讓球為主）＋ 三個比分預測。"""
+    from analyze import pred_scores
+    best: dict[str, dict] = {}
+    for c in candidates(games, hours):
+        g = c["g"]
+        if g["league"] in TOP5 and (g["game_id"] not in best or c["score"] > best[g["game_id"]]["score"]):
+            best[g["game_id"]] = c
+    blocks = [f"⚽ <b>五大聯賽單關推薦</b>（未來 {hours:g} 小時，每場一個最推薦選項）\n"
+              f"足球以大小、讓球為主；不讓分賠率 ≥ 1.5 才列入\n🟢 推薦　🟡 接近公平（運彩夠高才下）　🔴 偏貴（只是最不虧）\n"
+              "🎯 = 最可能 / 照預期進球 / 大比分"]
+    for lg in TOP5:
+        cs = sorted([c for c in best.values() if c["g"]["league"] == lg], key=lambda c: c["g"]["kickoff"])
+        if not cs:
+            continue
+        lines = [f"<b>【{lg}】</b>"]
+        for c in cs:
+            g, gm = c["g"], c["m"].get("goals")
+            lines.append(f"{ui.grade_icon(c['ev'])} {live.kickoff_str(g)} {escape(game_title(g))}\n"
+                         f"　👉 <b>{escape(c['name'])}</b>{' ⭐' if c.get('signal') else ''} @DK {c['odds']:.2f}｜{c['p']*100:.0f}%｜"
+                         f"📌 運彩 ≥ {c['fair']:.2f}" + (f"\n　🎯 {pred_scores(gm)}" if gm else ""))
+        blocks.append("\n".join(lines))
+    if len(blocks) == 1:
+        blocks.append(f"未來 {hours:g} 小時五大聯賽沒有比賽。")
+    return blocks + ["📌 運彩賠率低於這個數字就跳過。" + live.DISCLAIMER]
+
+
 def report(games: list[dict], hours: float = 24, save_conn=None) -> list[str]:
     cands = candidates(games, hours)
     n_games = len({c["g"]["game_id"] for c in cands})

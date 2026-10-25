@@ -13,7 +13,7 @@ from html import escape
 
 import live
 import ui
-from analyze import MIN_EDGE, football_model, zh_short
+from analyze import MIN_EDGE, football_model, pred_scores, zh_short
 from core import db, now_utc, parse_iso, to_tpe
 from strategies import settle_handicap
 
@@ -132,8 +132,8 @@ def football_section(rs: list[dict]) -> str | None:
         gm = r["m"].get("goals")
         pred = ""
         if gm:
-            top = gm["top"][0][0]
-            pred = f"（預測 {top}{' 🎯猜中' if top == f'{g['home_score']}-{g['away_score']}' else ''}）"
+            hit = f"{g['home_score']}-{g['away_score']}" in [s for _, s, _ in gm["top"]]
+            pred = f"（預測 {pred_scores(gm)}{' 🎯猜中' if hit else ''}）"
         lines.append(f"{escape(zh_short(g['home']))} <b>{g['home_score']}-{g['away_score']}</b> {escape(zh_short(g['away']))}{upset}{pred}")
         if b:
             lines.append(_pick_line(b.get("short", b["name"]), b["odds"], b["ev"], b["profit"]))

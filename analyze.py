@@ -300,13 +300,30 @@ def goal_model(pc: tuple, lam: float) -> dict:
             surv[k] = 1 / (1 + math.exp(-(a + b * math.log(x / (1 - x)))))
         for k in range(1, kmax + 1):
             margin[k * sign] = max(0.0, surv[k] - surv[k + 1])
-    top = [(f"{i}-{j}", p) for p, i, j in sorted(cells, reverse=True)[:3]]
+    # 三個比分預測：單一機率最高的幾乎都是 1-1、1-0（機率太分散），所以另外給「照預期進球」與「大比分」情境
+    ranked = [(f"{i}-{j}", p, i, j) for p, i, j in sorted(cells, reverse=True)]
+    eh, ea = round(lh), round(la)
+    want = [("最可能", lambda i, j: True),
+            ("照預期進球", lambda i, j: (i, j) == (eh, ea)),
+            # 跟「最可能」同一個比分時：較強的一方多進一球（1-1 → 2-1）
+            ("照預期進球", lambda i, j: (i, j) == ((eh + 1, ea) if lh >= la else (eh, ea + 1))),
+            ("大比分", lambda i, j: i + j >= max(4, eh + ea + 1))]
+    top, used = [], set()
+    for label, ok in want:
+        hit = None if label in {t[0] for t in top} else next((c for c in ranked if ok(c[2], c[3]) and c[0] not in used), None)
+        if hit:
+            top.append((label, hit[0], hit[1]))
+            used.add(hit[0])
     return {"lh": lh, "la": la, "top": top, "margin": margin, "total": total}
 
 
 def score_line(gm: dict) -> str:
-    return (f"🎯 <b>比分預測</b>：預期進球 主 {gm['lh']:.1f} : 客 {gm['la']:.1f}｜最可能 "
-            + "、".join(f"{s}（{p*100:.0f}%）" for s, p in gm["top"]))
+    return (f"🎯 <b>比分預測</b>（預期進球 主 {gm['lh']:.1f} : 客 {gm['la']:.1f}）\n　"
+            + "｜".join(f"{lab} <b>{s}</b>（{p*100:.0f}%）" for lab, s, p in gm["top"]))
+
+
+def pred_scores(gm: dict) -> str:
+    return " / ".join(s for _, s, _ in gm["top"])
 
 
 def line_table(gm: dict, pc: tuple) -> str:
@@ -441,7 +458,7 @@ def analyze_football(g: dict, strats: list[Strategy]) -> tuple[str, dict | None]
     sp, p_sp, n, hist = m["sp"], m["p_sp"], m["n"], m["hist"]
     if m["goals"]:
         head.append(score_line(m["goals"]))
-        g["_pred"] = f"預測 {m['goals']['top'][0][0]}｜大2.5 {sum(v for k, v in m['goals']['total'].items() if k > 2.5)*100:.0f}%"
+        g["_pred"] = f"預測 {pred_scores(m['goals'])}｜大2.5 {sum(v for k, v in m['goals']['total'].items() if k > 2.5)*100:.0f}%"
 
     lines.append("<b>盤口（DK 開盤→現在，去水機率）</b>")
     lines.append("  勝/和/負 " + " / ".join(f"{a*100:.0f}→{b*100:.0f}%" for a, b in zip(po or pc, pc))

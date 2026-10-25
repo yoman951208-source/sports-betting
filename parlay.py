@@ -38,6 +38,9 @@ CREATE TABLE IF NOT EXISTS parlays (
 
 
 def candidate_legs(games: list[dict], league: str | None, hours: float, sport: str | None = None) -> list[dict]:
+    from backtest import load_strategies
+    from picks import _signals
+    strats = load_strategies()[0]
     legs = []
     for g in upcoming(games, hours, league=league, sport=sport):
         if g["sport"] not in ("football", "mlb", "nba"):
@@ -45,9 +48,13 @@ def candidate_legs(games: list[dict], league: str | None, hours: float, sport: s
         m = game_model(g)
         if not m:
             continue
+        _signals(g, m, strats)       # ⭐ 訊號的 uplift，跟單關推薦一致（10/25：單關推溜馬、串關卻選籃網）
+        best: dict[str, dict] = {}   # 每場每個盤只留期望值較高的一邊，不會出現一張押主、一張押客
         for o in m["options"]:
             if LEG_ODDS[0] <= o["odds"] <= LEG_ODDS[1] and o["ev"] >= LEG_MIN_EV and in_focus(m, o):
-                legs.append({**o, "g": g, "m": m})
+                if o["key"][0] not in best or o["ev"] > best[o["key"][0]]["ev"]:
+                    best[o["key"][0]] = o
+        legs += [{**o, "g": g, "m": m} for o in best.values()]
     return legs
 
 

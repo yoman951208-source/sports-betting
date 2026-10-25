@@ -49,6 +49,7 @@ HELP = """🤖 <b>運彩分析機器人</b>
 🏀 <b>NBA</b>／⚾ <b>MLB</b>／⚽ <b>足球</b>：先看總表，<b>點比賽按鈕</b>才展開詳細分析
 🧾 <b>賽後檢討</b>：賽前預測 vs 實際結果
 📅 <b>今日總覽</b>　📒 <b>戰績</b>
+🏀 <b>NBA推薦</b>：每場一個最推薦單關（輸入「NBA推薦」）
 ⚽ <b>五大聯賽</b>：英超、西甲、義甲、德甲、法甲每場的最推薦單關 + 三個比分預測（輸入「五大聯賽」）
 💱 <b>運彩比價</b>：直接打運彩的賠率，例如 <code>湖人 1.75</code>、<code>湖人 -3.5 1.80</code>、<code>曼城 大2.5 1.85</code>（好幾行 = 串關）
 
@@ -176,6 +177,10 @@ def handle(text: str) -> None:
         head, *blocks = review.build(hours)
         send_telegram(head)
         send_blocks(blocks)
+        return
+    if cmd in ("nba推薦", "nba單關", "籃球推薦"):
+        import picks
+        send_blocks(picks.top5_report(live.fetch_games(), leagues=["NBA"], title="🏀 NBA "))
         return
     if cmd in ("五大聯賽", "五大", "top5"):
         import picks

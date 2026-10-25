@@ -422,13 +422,13 @@ def football_model(g: dict) -> dict | None:
     return m
 
 
-FOOTBALL_1X2_MIN_ODDS = 1.5      # 足球以大小、讓球為主；不讓分賠率至少這麼高才推薦（使用者 10/25）
+MIN_ML_ODDS = 1.5                # 足球、NBA 以大小、讓分為主；不讓分賠率至少這麼高才推薦（使用者 10/25）
 
 
 def in_focus(m: dict, o: dict) -> bool:
     """這個選項能不能進推薦、最推薦、串關。"""
     focus = m.get("focus")
-    return not focus or o["key"][0] in focus or (o["key"][0] == "1x2" and o["odds"] >= FOOTBALL_1X2_MIN_ODDS)
+    return not focus or o["key"][0] in focus or (o["key"][0] in ("1x2", "ml") and o["odds"] >= MIN_ML_ODDS)
 
 
 def pick_best(m: dict) -> dict | None:
@@ -651,9 +651,36 @@ def nba_model(g: dict, f: dict | None = None) -> dict | None:
         raw[("ml", "home")], raw[("ml", "away")] = q, 1 - q
     for x in options:
         x["p_raw"] = raw.get(x["key"], x["p_mkt"])
-    rows, best = option_rows(options, sport="nba")
-    return {"sp": sp, "L": tot, "n": n, "hist": hist, "form": form, "p_sp": p_sp, "p_ml": pm_c, "options": [x for x in options if "p" in x],
-            "rows": rows, "best": best}
+    option_rows(options, sport="nba")
+    m = {"sp": sp, "L": tot, "n": n, "hist": hist, "form": form, "p_sp": p_sp, "p_ml": pm_c,
+         "options": [x for x in options if "p" in x], "focus": ("total", "spread")}
+    m["best"] = pick_best(m)
+    m["rows"] = [ui.options_table(m["options"], m["best"])]
+    m["extra"] = ["", "<b>📐 運彩常見盤口的合理賠率</b>（以 DK 盤口為中心的常態近似，運彩 ≥ 合理才划算）",
+                  nba_line_table(m, live.team_name(g, "home").split()[0])]
+    return m
+
+
+def nba_line_table(m: dict, home: str) -> str:
+    """DK 盤口上下 1–2 分（讓分）、2–4 分（大小）的合理賠率：運彩的 NBA 盤口常跟 DK 差一兩分。"""
+    from oddscheck import SIGMA, _phi, _phi_inv
+    s_m, s_t = SIGMA["nba"]
+    rows = []
+    p_sp = next((o["p"] for o in m["options"] if o["key"] == ("spread", "home")), None)
+    if p_sp is not None:
+        mu = s_m * _phi_inv(p_sp) - m["sp"]              # 主隊預期淨勝分（讓 DK 盤口的贏盤機率等於模型）
+        for d in (-2, -1, 0, 1, 2):
+            line = m["sp"] + d
+            p = _phi((mu + line) / s_m)
+            rows.append([f"{1/p:.2f}", f"{1/(1-p):.2f}", f"讓分 {home} {line:+g}"])
+    p_o = next((o["p"] for o in m["options"] if o["key"] == ("total", "over")), None)
+    if p_o is not None and m["L"]:
+        mu = m["L"] + s_t * _phi_inv(p_o)
+        for d in (-4, -2, 0, 2, 4):
+            line = m["L"] + d
+            p = 1 - _phi((line - mu) / s_t)
+            rows.append([f"{1/p:.2f}", f"{1/(1-p):.2f}", f"大小 {line:g}"])
+    return ui.table(["主/大", "客/小", "運彩盤口"], rows, right=(0, 1))
 
 
 # =============================================================================

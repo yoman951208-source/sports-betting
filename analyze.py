@@ -154,7 +154,8 @@ def apply_signals(g: dict, m: dict | None, strats: list[Strategy], f: dict) -> l
             continue
         key = ({"ou25": "total", "ah": "spread"}.get(s.market, s.market), t[0])
         o = next((x for x in m["options"] if x["key"] == key), None)
-        up = s.stats.get("uplift", 0.0)
+        import learning
+        up = learning.strategy_uplift(s)
         if o is not None and up > 0 and o["p_mkt"] + up > o["p"]:
             p = min(0.97, o["p_mkt"] + up)
             o.update(p=p, ev=p * o["odds"] - 1, fair=1 / p, signal=s.title)
@@ -326,17 +327,28 @@ def pred_scores(gm: dict) -> str:
     return " / ".join(s for _, s, _ in gm["top"])
 
 
-def line_table(gm: dict, pc: tuple) -> str:
-    """運彩常見的大小、讓球盤口的合理賠率（比分模型換算）。"""
+def dk_p(m: dict, market: str, line: float) -> float | None:
+    """DK 正好開這個盤口時，直接用 DK 那個選項的機率（跟「全部選項」表一致，10/28 審查第 1 點）。
+    market = total → 大分機率；spread → 主隊讓 line 的贏盤機率。"""
+    ref = m.get("L") if market == "total" else m.get("sp")
+    if ref is None or abs(ref - line) > 1e-9:
+        return None
+    o = next((o for o in m["options"] if o["key"] == (market, "over" if market == "total" else "home") and "p" in o), None)
+    return o["p"] if o else None
+
+
+def line_table(gm: dict, pc: tuple, m: dict) -> str:
+    """運彩常見的大小、讓球盤口的合理賠率（比分模型換算；DK 有開的盤口用 DK）。"""
     rows = []
     lam = gm["lh"] + gm["la"]
     for L in (1.5, 2.5, 3.5) + ((4.5,) if lam >= 3 else ()):
-        p = sum(v for n, v in gm["total"].items() if n > L)
+        p = dk_p(m, "total", L) or sum(v for n, v in gm["total"].items() if n > L)
         rows += [[f"{p*100:.0f}%", f"{1/p:.2f}", f"大 {L:g}"], [f"{(1-p)*100:.0f}%", f"{1/(1-p):.2f}", f"小 {L:g}"]]
     fav_home = pc[0] >= pc[2]
     fav, dog = ("主", "客") if fav_home else ("客", "主")
     for k in (1.5, 2.5) if max(pc[0], pc[2]) >= 0.55 else (1.5,):
-        p = sum(v for m, v in gm["margin"].items() if (m if fav_home else -m) > k)
+        ph = dk_p(m, "spread", -k if fav_home else k)
+        p = (ph if fav_home else 1 - ph) if ph is not None else sum(v for d, v in gm["margin"].items() if (d if fav_home else -d) > k)
         rows += [[f"{p*100:.0f}%", f"{1/p:.2f}", f"{fav}讓 {k:g}"], [f"{(1-p)*100:.0f}%", f"{1/(1-p):.2f}", f"{dog}受讓 {k:g}"]]
     return ui.table(["勝率", "合理", "運彩盤口"], rows, right=(0, 1))
 
@@ -418,7 +430,7 @@ def football_model(g: dict) -> dict | None:
     m["best"] = pick_best(m)
     m["rows"] = [ui.options_table(m["options"], m["best"])]
     if m["goals"]:
-        m["extra"] = ["", "<b>📐 運彩常見盤口的合理賠率</b>（比分模型換算，運彩 ≥ 合理才划算）", line_table(m["goals"], pc)]
+        m["extra"] = ["", "<b>📐 運彩常見盤口的合理賠率</b>（比分模型換算，運彩 ≥ 合理才划算）", line_table(m["goals"], pc, m)]
     return m
 
 
@@ -426,9 +438,10 @@ MIN_ML_ODDS = 1.5                # 足球、NBA 以大小、讓分為主；不�
 
 
 def in_focus(m: dict, o: dict) -> bool:
-    """這個選項能不能進推薦、最推薦、串關。"""
+    """這個選項能不能進推薦、最推薦、串關。⭐ 訊號成立的選項一律可以（不然分析頁會同時出現 ⭐ 跟「觀望」）。"""
     focus = m.get("focus")
-    return not focus or o["key"][0] in focus or (o["key"][0] in ("1x2", "ml") and o["odds"] >= MIN_ML_ODDS)
+    return (not focus or o["key"][0] in focus or bool(o.get("signal"))
+            or (o["key"][0] in ("1x2", "ml") and o["odds"] >= MIN_ML_ODDS))
 
 
 def pick_best(m: dict) -> dict | None:

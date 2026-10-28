@@ -323,7 +323,8 @@ def breakeven_line(s: Strategy, p_mkt: float | None) -> str:
     """把回測的「實際勝率 - 市場機率」加回現在的市場機率，換算成運彩至少要開多少才有正期望值。"""
     if p_mkt is None:
         return ""
-    p_est = min(0.97, max(0.03, p_mkt + s.stats.get("uplift", 0.0)))
+    import learning
+    p_est = min(0.97, max(0.03, p_mkt + learning.strategy_uplift(s)))
     return f"估計勝率 {p_est*100:.1f}% → 運彩賠率 ≥ <b>{1/p_est:.2f}</b> 才有正期望值（盤口需相同）"
 
 

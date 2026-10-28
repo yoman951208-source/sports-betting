@@ -58,7 +58,7 @@ def reasons(o: dict, g: dict, m: dict, signal: str | None) -> list[str]:
     ev = o["ev"]
     r.append(f"DK 賠率高於合理價（期望值 {ev*100:+.1f}%）" if ev > 0 else f"在所有選項中最接近公平價（期望值 {ev*100:+.1f}%）")
     if signal:
-        r.append(f"⭐ 通過歷史回測的訊號：{signal}（回測勝率比市場高 {(o['p'] - o['p_mkt'])*100:.1f}pp）")
+        r.append(f"⭐ 通過歷史回測的訊號：{signal}（回測＋實戰勝率比市場高 {(o['p'] - o['p_mkt'])*100:.1f}pp）")
     po = _open_prob(o, g, m)
     if po is not None and o["p_mkt"] - po >= 0.03:
         r.append(f"資金往這邊：開盤 {po*100:.0f}% → 現在 {o['p_mkt']*100:.0f}%")

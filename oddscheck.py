@@ -125,6 +125,13 @@ def leg_fair(g: dict, m: dict, leg: dict) -> tuple[float | None, str]:
         if leg["market"] == "draw":
             p = (_option(m, ("1x2", "D")) or {}).get("p")
             return (1 / p if p else None), "和局"
+        home_line = leg["line"] if leg["market"] == "total" or side == "home" else -leg["line"]
+        ph = analyze.dk_p(m, leg["market"], home_line)   # DK 正好開這個盤口 → 跟分析頁同一個數字
+        if ph is not None:
+            p = ph if (leg.get("pick") == "over" or (leg["market"] == "spread" and side == "home")) else 1 - ph
+            what = (f"{'大' if leg.get('pick') == 'over' else '小'} {leg['line']:g} 球" if leg["market"] == "total"
+                    else f"{escape(live.team_name(g, side))} {leg['line']:+g}")
+            return 1 / p, what
         gm = m.get("goals") or analyze.goal_model(pc, lam)
         if leg["market"] == "total":
             dist = {(n - leg["line"]) if leg["pick"] == "over" else (leg["line"] - n): p for n, p in gm["total"].items()}

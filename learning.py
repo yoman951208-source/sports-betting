@@ -197,6 +197,25 @@ CAL_MIN_GAMES = 200      # 實戰至少這麼多場才判斷校準層是否該�
 CAL_T = 2.0              # 校準比原始差、且 t 值超過這個才關
 
 
+def strategy_uplift(s) -> float:
+    """⭐ 策略的「實際勝率比市場機率高多少」：回測與實戰推播的結果按注數合併（10/28 使用者：實際勝率比模型高就多推）。
+    實戰打得比回測好 → 加分變大、更常被推薦；打得差 → 自動變小。只合併通過回測的策略：
+    研究（research/error_momentum.py）顯示「最近一直贏的類型」本身不會延續，只有回測過的規律才值得加碼。"""
+    bt_n, bt_up = s.stats.get("n", 0), s.stats.get("uplift", 0.0)
+    try:
+        conn = db()
+        try:   # 同一場同一邊可能先預警後訊號，只算一次
+            rows = conn.execute("""SELECT MAX(result = 'W') w, AVG(p_mkt) p FROM alerts
+                                   WHERE strategy = ? AND result IN ('W','L') AND p_mkt IS NOT NULL
+                                   GROUP BY game_id, pick""", (s.sid,)).fetchall()
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        return bt_up
+    live = sum(r["w"] - r["p"] for r in rows)
+    return (bt_n * bt_up + live) / (bt_n + len(rows)) if bt_n + len(rows) else 0.0
+
+
 def check_calibration(conn: sqlite3.Connection) -> list[str]:
     """用實戰結果比較「校準後市場機率」與「原始等比例去水」：校準明顯變差就自動關閉該運動的校準。"""
     ensure(conn)

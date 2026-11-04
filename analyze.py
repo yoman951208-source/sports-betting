@@ -372,7 +372,7 @@ def football_model(g: dict) -> dict | None:
     lam_o = lam_from_over(pOLo, Lo) if Lo and pOLo else None
     sp = o.get("c_spread_home")
     # 讓球：power 去水 + 扣回莊家對主隊多抽的部分（10/23 莊家角度評估）
-    p_sp = calibration.football_spread(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"))
+    p_sp = calibration.football_spread(o.get("c_spread_home_odds"), o.get("c_spread_away_odds"), sp)
 
     # 歷史相似盤口（勝平負 × 大小 交叉）—— 用未校準的機率找相似比賽（與歷史欄位同一套定義）
     a = football_analogs(pc_raw[0], pc_raw[2], pO25)

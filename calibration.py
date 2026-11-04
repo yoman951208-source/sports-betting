@@ -85,16 +85,17 @@ def _fit(X: np.ndarray, y: np.ndarray) -> list[float]:
     return [round(float(v), 5) for v in w]
 
 
-def _fit_intercept(lp: np.ndarray, y: np.ndarray) -> float:
-    """斜率固定 1、只估截距：logit(p真) = a + logit(p市場)。"""
-    a = 0.0
-    for _ in range(30):
-        p = _sigmoid(a + lp)
-        a -= float((p - y).sum() / (p * (1 - p)).sum())
-    return round(a, 5)
+def _fit_intercept(lp: np.ndarray, y: np.ndarray, extra: np.ndarray | None = None) -> list[float]:
+    """斜率固定 1：logit(p真) = a + logit(p市場) + c·extra（extra 可省略）。回傳 [a] 或 [a, c]。"""
+    X = np.ones((len(lp), 1)) if extra is None else np.column_stack([np.ones(len(lp)), extra])
+    w = np.zeros(X.shape[1])
+    for _ in range(40):
+        p = _sigmoid(lp + X @ w)
+        w -= np.linalg.solve((X * (p * (1 - p))[:, None]).T @ X + 1e-6 * np.eye(X.shape[1]), X.T @ (p - y))
+    return [round(float(v), 5) for v in w]
 
 
-CAL_VERSION = 3        # 10/23：季別變多後重新驗證、拿掉不穩的校準
+CAL_VERSION = 4        # 11/05：足球讓球的主隊截距依深度分開（|讓球| ≥1.5 再扣一些）
 
 
 def fit_all() -> dict:
@@ -108,7 +109,9 @@ def fit_all() -> dict:
     m = ah["hg"] - ah["ag"] + ah["c_ah_line"]
     ah, m = ah[m != 0], m[m != 0]
     lp = _logit(_power_matrix(ah[["c_ah_h", "c_ah_a"]].to_numpy(float))[:, 0])
-    out["football_spread"] = _fit_intercept(lp, (m > 0).to_numpy(float))
+    # 深盤（|讓球| ≥ 1.5）主隊被多抽得更多：逐季留一 8 季中 7 季改善，深盤 1,603 注 ROI +3.4%（research/football_ah_depth.py）
+    deep = (ah["c_ah_line"].abs() >= 1.5).to_numpy(float)
+    out["football_spread"], out["football_spread_deep"] = _fit_intercept(lp, (m > 0).to_numpy(float), deep)
     out["n"] = {"football_spread": int(len(ah))}
     try:
         out.update(_fit_nba_form(data_nba.load_history()))
@@ -182,6 +185,7 @@ def coefs() -> dict:
     if "football" in off:
         c.pop("football_1x2", None)
         c.pop("football_spread", None)
+        c.pop("football_spread_deep", None)
         c["raw_football"] = True
     if "nba" in off:
         c.pop("nba_ml", None)
@@ -238,13 +242,15 @@ def two_way(o1, o2) -> float | None:
     return p[0] if p else None
 
 
-def football_spread(odds_home, odds_away) -> float | None:
-    """足球讓分的主隊贏盤機率：power 去水 + 主隊截距（莊家對主隊多抽的部分扣回來）。"""
+def football_spread(odds_home, odds_away, line: float | None = None) -> float | None:
+    """足球讓分的主隊贏盤機率：power 去水 + 主隊截距（莊家對主隊多抽的部分扣回來；深盤多扣一點）。"""
     p = two_way(odds_home, odds_away)
-    a = coefs().get("football_spread")
+    c = coefs()
+    a = c.get("football_spread")
     if p is None or a is None:
         return p
-    return float(_sigmoid(a + float(_logit(p))))
+    deep = c.get("football_spread_deep", 0.0) if line is not None and abs(line) >= 1.5 else 0.0
+    return float(_sigmoid(a + deep + float(_logit(p))))
 
 
 def nba_ml(c_home, c_away, o_home=None, o_away=None) -> float | None:

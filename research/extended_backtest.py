@@ -256,7 +256,7 @@ def calibration_section():
         te = (ah.season == S).to_numpy()
         if te.sum() < 200:
             continue
-        a = cal._fit_intercept(lpa[~te], y[~te])
+        a = cal._fit_intercept(lpa[~te], y[~te])[0]
         d = bll(sig(a + lpa[te]), y[te]) - bll(sig(lpa[te]), y[te])
         better += d.mean() < 0
         out.append(f"{S} 截距{a:+.3f} 主隊實際{y[te].mean() * 100:.1f}%/市場{sig(lpa[te]).mean() * 100:.1f}% {d.mean() * 1000:+.2f}‰")

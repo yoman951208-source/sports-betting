@@ -35,6 +35,18 @@ def test_line_table_uses_dk_for_the_dk_line():
     assert "43%" in analyze.line_table(gm, (0.5, 0.27, 0.23), m).split("大 2.5")[0].splitlines()[-1]
 
 
+def test_intercept_fit_recovers_offsets():
+    import numpy as np
+    import calibration
+    rng = np.random.default_rng(0)
+    lp = rng.normal(0, 0.6, 40000)
+    deep = (rng.random(40000) < 0.3).astype(float)
+    y = (rng.random(40000) < 1 / (1 + np.exp(-(lp - 0.05 - 0.10 * deep)))).astype(float)
+    a, c = calibration._fit_intercept(lp, y, deep)
+    assert abs(a + 0.05) < 0.03 and abs(c + 0.10) < 0.05, (a, c)
+    assert len(calibration._fit_intercept(lp, y)) == 1
+
+
 def test_in_focus():
     m = {"focus": ("total", "spread")}
     assert analyze.in_focus(m, {"key": ("total", "over"), "odds": 1.2})

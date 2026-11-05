@@ -21,6 +21,7 @@ FOOTBALL_LEAGUES = {
 FOOTBALL_CUPS = {
     "uefa.champions": "歐冠",
     "uefa.europa": "歐霸",
+    "chn.1": "中超",      # 11/05 加入（上海申花）；ESPN 有 DK 賠率，沒有歷史資料 → 套用歐洲聯賽學到的規律
 }
 # 回測季別（football-data 的季別代碼）。10/23 起往前加到 2019-20（football-data 從這季開始有收盤、亞盤、大小盤）
 FOOTBALL_SEASONS = ["1920", "2021", "2122", "2223", "2324", "2425", "2526", "2627"]

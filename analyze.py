@@ -27,6 +27,8 @@ SHRINK = 1e9          # 只用市場機率；歷史相似盤口只當參考（10
 MIN_EDGE = 0.02       # 綜合期望值 ≥ 2% 才列為「可考慮」
 
 FOOTBALL_ZH = {
+    "shanghai shenhua fc": "上海申花", "shanghai port fc": "上海海港", "beijing guoan": "北京國安", "shandong taishan": "山東泰山",
+    "chengdu rongcheng": "成都蓉城", "zhejiang professional fc": "浙江", "qingdao west coast": "青島西海岸", "dalian yingbo": "大連英博",
     "manchester city": "曼城", "manchester united": "曼聯", "liverpool": "利物浦", "arsenal": "兵工廠",
     "chelsea": "切爾西", "tottenham hotspur": "熱刺", "newcastle united": "紐卡索", "aston villa": "阿斯頓維拉",
     "real madrid": "皇馬", "barcelona": "巴薩", "atlético madrid": "馬競", "atletico madrid": "馬競",
@@ -42,6 +44,7 @@ FOOTBALL_ZH = {
     "sabah fk": "薩巴",
 }
 ALIASES = {**{v: k for k, v in FOOTBALL_ZH.items()},
+           "申花": "shanghai shenhua fc", "海港": "shanghai port fc", "國安": "beijing guoan", "泰山": "shandong taishan",
            "巴黎": "paris saint-germain", "國米": "internazionale", "米蘭": "ac milan", "尤文": "juventus",
            "巴塞": "barcelona", "巴薩隆納": "barcelona", "皇家馬德里": "real madrid", "阿森納": "arsenal",
            "槍手": "arsenal", "多特": "borussia dortmund", "藥廠": "bayer leverkusen", "熱刺": "tottenham hotspur",

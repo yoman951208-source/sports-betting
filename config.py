@@ -45,7 +45,7 @@ NBA_PREVIEW_HOUR = 6                 # 每天幾點發 NBA 賽前報告（台灣
 
 # ---------------- 即時監控 ----------------
 CHECK_INTERVAL_MINUTES = 30          # 常駐模式多久抓一次盤口
-FOOTBALL_LOOKAHEAD_DAYS = 3          # 監控未來幾天的足球賽
+FOOTBALL_LOOKAHEAD_DAYS = 4          # 監控未來幾天的足球賽
 NBA_LOOKAHEAD_DAYS = 2
 # 回測策略以「收盤賠率」下注，所以訊號要在接近開賽時發（此時盤口最接近收盤）
 SIGNAL_WINDOW_HOURS = {"football": 4, "nba": 3, "mlb": 3}

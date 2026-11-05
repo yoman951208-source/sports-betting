@@ -7,10 +7,12 @@
 //
 // 需要的設定（wrangler secret）：BOT_TOKEN、CHAT_ID、GH_TOKEN、WEBHOOK_SECRET；變數 GH_REPO 在 wrangler.toml
 
+import { liveDetail, liveList } from "./live.js";
+
 const MENU = {
   keyboard: [
     [{ text: "🏆 今日推薦" }, { text: "🎟️ 串關" }],
-    [{ text: "🏀 NBA" }, { text: "⚾ MLB" }, { text: "⚽ 足球" }],
+    [{ text: "🏀 NBA" }, { text: "⚾ MLB" }, { text: "⚽ 足球" }, { text: "🔴 場中" }],
     [{ text: "🧾 賽後檢討" }, { text: "📅 今日總覽" }],
     [{ text: "💱 運彩比價" }, { text: "📒 戰績" }, { text: "❓ 說明" }],
   ],
@@ -28,6 +30,7 @@ const HELP = `🤖 <b>運彩分析機器人</b>
 🧾 <b>賽後檢討</b>　📅 <b>今日總覽</b>　📒 <b>戰績</b>
 🏀 <b>NBA推薦</b>：每場一個最推薦單關（輸入「NBA推薦」）
 ⚽ <b>五大聯賽</b>：每場的最推薦單關 + 三個比分預測（輸入「五大聯賽」）
+🔴 <b>場中</b>：進行中的 NBA 比賽，DK 場中盤口、勝率、節奏、球員狀態（Worker 即時回覆，約 3 秒）
 💱 <b>運彩比價</b>：直接打運彩的賠率，例如 <code>湖人 1.75</code>、<code>湖人 -3.5 1.80</code>（好幾行 = 串關）
 
 也可以直接打字：隊名（曼城、皇馬、湖人、LAL）、聯賽（歐冠、英超）
@@ -44,6 +47,7 @@ const HOWTO = `💱 <b>運彩賠率比價</b>
 <code>湖人 大228.5 1.75</code>　→ 那場大分（小分寫「小」）
 <code>利物浦 和 3.40</code>　→ 足球和局
 我會回：估計勝率、合理賠率、期望值，值不值得買。`;
+const LIVE_KEYS = new Set(["🔴 場中", "場中", "/live", "NBA場中"]);
 const HOWTO_KEYS = new Set(["💱 運彩比價", "比價", "運彩比價", "/odds"]);
 
 export default {
@@ -84,6 +88,18 @@ export default {
     // 說明／選單：秒回
     if (kind === "message" && INSTANT.has(payload.split("@")[0])) {
       await tg("sendMessage", { chat_id: chatId, text: HELP, parse_mode: "HTML", reply_markup: MENU });
+      return new Response("ok");
+    }
+
+    // 場中分析：Worker 直接處理（場中盤口幾秒就變，不能等 GitHub Actions 排隊）
+    if ((kind === "message" && LIVE_KEYS.has(payload)) || (kind === "callback" && payload.startsWith("lv:"))) {
+      try {
+        if (callbackId) await tg("answerCallbackQuery", { callback_query_id: callbackId });
+        const r = kind === "callback" ? { text: await liveDetail(env, payload.slice(3).replace(/\D/g, "")) } : await liveList(env);
+        await tg("sendMessage", { chat_id: chatId, text: r.text, parse_mode: "HTML", reply_markup: r.keyboard });
+      } catch (err) {
+        await tg("sendMessage", { chat_id: chatId, text: `⚠️ 場中資料暫時抓不到：${String(err.message || err).replace(env.ODDS_API_KEY || "§", "***")}` });
+      }
       return new Response("ok");
     }
 

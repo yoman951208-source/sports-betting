@@ -954,15 +954,16 @@ def league_report(games: list[dict], league: str, hours: float = 36) -> list[str
         when = f"{to_tpe(parse_iso(g['kickoff'])):%m/%d %H:%M}"
         note = f" [{escape(g['note'])}]" if g.get("note") and g["sport"] == "mlb" else ""
         pred = f"\n　🎯 {g['_pred']}" if g.get("_pred") else ""
+        # 每場都列出最推薦（或最不虧）的選項，不用再一場一場點進去看
+        pick = (f"\n　👉 <b>{escape(best['name'])}</b> @{best['odds']:.2f}｜📌 運彩 ≥ {best['fair']:.2f}" if best else "\n　（沒有盤口）")
         if best and best["ev"] >= MIN_EDGE:
-            recs.append(f"{when} {escape(game_title(g))}{note}\n"
-                        f"　👉 <b>{escape(best['name'])}</b> @{best['odds']:.2f}｜📌 運彩 ≥ {best['fair']:.2f}{pred}")
+            recs.append(f"{when} {escape(game_title(g))}{note}{pick}{pred}")
         else:
             icon = ui.grade_icon(best["ev"]) if best else "⚪"
-            others.append(f"{icon} {when} {escape(game_title(g))}{note}{pred}")
+            others.append(f"{icon} {when} {escape(game_title(g))}{note}{pick}{pred}")
     head = [f"🏆 <b>{escape(league)} 分析總表</b>（未來 {hours:g} 小時，{len(sel)} 場）", ""]
     head += ([f"🟢 <b>推薦（{len(recs)} 場）</b>"] + recs) if recs else ["🟢 <b>推薦</b>：這段時間沒有明顯有價值的選項"]
     if others:
-        head += ["", f"<b>其他 {len(others)} 場</b>（🟡 接近公平：運彩賠率夠高才考慮｜🔴 偏貴：觀望）"] + others
+        head += ["", f"<b>其他 {len(others)} 場</b>（每場列出最不虧的選項；🟡 接近公平：運彩夠高才考慮｜🔴 偏貴：觀望）"] + others
     head += ["", "📌 = 運彩賠率至少要這麼高才划算（DK 的價格通常比運彩好）", live.DISCLAIMER]
     return ["\n".join(head)] + details

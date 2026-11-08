@@ -748,6 +748,11 @@ def daily_digest(conn: sqlite3.Connection, games: list[dict], strats: list[Strat
 def weekly_report(conn: sqlite3.Connection, dry_run: bool) -> None:
     lines = ["📊 <b>每週實戰成績</b>", "", "<b>近 7 天</b>"] + record_summary(conn, 7)
     lines += ["", "<b>全部累計</b>"] + record_summary(conn)
+    import parlay
+    for title, days in (("近 7 天", 7), ("全部累計", None)):
+        lines += ["", f"<b>🏆 最推薦｜{title}</b>"]
+        for k in ("單關", "二串一", "三串一"):
+            lines.append(f"{k}　{parlay.record_lines(conn, days, '最推薦｜' + k)[0]}")
     lines += ["", "CLV = 推播時賠率 vs 開賽前最後賠率；長期 CLV 為正，代表訊號確實比收盤盤口早一步。"]
     send_telegram("\n".join(lines), dry_run=dry_run)
 

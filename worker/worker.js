@@ -12,6 +12,7 @@ import { liveDetail, liveList } from "./live.js";
 const MENU = {
   keyboard: [
     [{ text: "🏆 今日推薦" }, { text: "🎟️ 串關" }],
+    [{ text: "🥈 最推薦二串一" }, { text: "🥉 最推薦三串一" }],
     [{ text: "🏀 NBA" }, { text: "⚾ MLB" }, { text: "⚽ 足球" }, { text: "🔴 場中" }],
     [{ text: "🧾 賽後檢討" }, { text: "📅 今日總覽" }],
     [{ text: "💱 運彩比價" }, { text: "📒 戰績" }, { text: "❓ 說明" }],

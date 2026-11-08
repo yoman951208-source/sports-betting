@@ -22,6 +22,7 @@ OFFSET_FILE = DATA_DIR / "tg_offset.txt"   # Telegram 讀取位置（本機專�
 MENU = {
     "keyboard": [
         [{"text": "🏆 今日推薦"}, {"text": "🎟️ 串關"}],
+        [{"text": "🥈 最推薦二串一"}, {"text": "🥉 最推薦三串一"}],
         [{"text": "🏀 NBA"}, {"text": "⚾ MLB"}, {"text": "⚽ 足球"}, {"text": "🔴 場中"}],
         [{"text": "🧾 賽後檢討"}, {"text": "📅 今日總覽"}],
         [{"text": "💱 運彩比價"}, {"text": "📒 戰績"}, {"text": "❓ 說明"}],
@@ -30,10 +31,11 @@ MENU = {
     "is_persistent": True,
     "input_field_placeholder": "按下面的按鈕，或輸入隊名（例：湖人、曼城）",
 }
-BUTTONS = {"🏆 今日推薦": "推薦", "🎟️ 串關": "串關", "🏀 NBA": "nba", "⚾ MLB": "mlb", "⚽ 足球": "足球",
+BUTTONS = {"🏆 今日推薦": "推薦", "🥈 最推薦二串一": "二串一", "🥉 最推薦三串一": "三串一","🎟️ 串關": "串關", "🏀 NBA": "nba", "⚾ MLB": "mlb", "⚽ 足球": "足球",
            "🧾 賽後檢討": "賽後", "📅 今日總覽": "today", "📒 戰績": "report", "❓ 說明": "help", "💱 運彩比價": "比價"}
 BEST_BUTTONS = {"inline_keyboard": [
     [{"text": "🔄 重新整理", "callback_data": "c:推薦"}],
+    [{"text": "🥈 最推薦二串一", "callback_data": "c:二串一"}, {"text": "🥉 最推薦三串一", "callback_data": "c:三串一"}],
     [{"text": "🎟️ 更多串關", "callback_data": "c:串關 全部"}, {"text": "📒 戰績", "callback_data": "c:report"}],
 ]}
 BOT_COMMANDS = [("best", "🏆 今日最推薦（單關、二串一、三串一）"), ("parlay", "🎟️ 串關建議"),
@@ -164,6 +166,10 @@ def handle(text: str) -> None:
         send_telegram("🔍 掃描所有比賽中…")
         send_blocks(picks.report(live.fetch_games(), float(arg) if arg.replace(".", "", 1).isdigit() else 24),
                     reply_markup=BEST_BUTTONS)
+        return
+    if cmd in ("二串一", "三串一", "最推薦二串一", "最推薦三串一"):
+        import picks
+        send_blocks(picks.parlay_report(live.fetch_games(), 2 if "二" in cmd else 3), reply_markup=BEST_BUTTONS)
         return
     if cmd in ("parlay", "串關", "串"):
         import parlay

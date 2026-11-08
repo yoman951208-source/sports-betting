@@ -213,6 +213,15 @@ def report(games: list[dict], hours: float = 24, save_conn=None) -> list[str]:
     return blocks
 
 
+def parlay_report(games: list[dict], size: int, hours: float = 24) -> list[str]:
+    """只看最推薦的二串一（size=2）或三串一（size=3）。"""
+    cn = {2: "二串一", 3: "三串一"}[size]
+    t = best_parlay(candidates(games, hours), size)
+    if not t:
+        return [f"🎫 <b>最推薦{cn}</b>\n今天找不到命中率 ≥{MIN_HIT[size]*100:.0f}% 且每關都接近公平價的組合 → 建議不串"]
+    return [_parlay_block(t, f"🎫 最推薦{cn}"), "📌 運彩組合賠率低於這個數字就跳過。" + live.DISCLAIMER]
+
+
 def _save(conn, single: dict, p2: dict | None, p3: dict | None) -> None:
     import parlay
     tickets = [("最推薦｜單關", {"legs": (single,), "p": single["p"], "fair": single["fair"], "odds": single["odds"]})]

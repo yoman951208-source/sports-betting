@@ -74,8 +74,12 @@ def evaluate(df: pd.DataFrame, sigs: dict[str, np.ndarray], pos: str, neg: str, 
     say(f"{'因子':<34}{'場數':>6}{'ROI':>8}{'t':>6} ｜{'train n':>8}{'ROI':>8}{'t':>6} ｜{'test n':>7}{'ROI':>8}{'t':>6}")
     is_test = df["season"].isin(test_seasons).values
     rows = []
-    for name, s in sigs.items():
-        s = np.asarray(s)
+    both = {}
+    for name, s in sigs.items():                      # 每個因子正反兩個方向都測（基準除外，本來就成對）
+        both[name] = np.asarray(s)
+        if not name.startswith("基準"):
+            both[name + "〔反向〕"] = -np.asarray(s)
+    for name, s in both.items():
         pnl = np.where(s > 0, df[pos].values, np.where(s < 0, df[neg].values, np.nan))
         ok = ~np.isnan(pnl)
 
@@ -85,10 +89,11 @@ def evaluate(df: pd.DataFrame, sigs: dict[str, np.ndarray], pos: str, neg: str, 
                 return len(x), float("nan"), float("nan")
             return len(x), x.mean(), x.mean() / (x.std(ddof=1) / np.sqrt(len(x)))
         (n, r, t), (n1, r1, t1), (n2, r2, t2) = stat(np.ones(len(df), bool)), stat(~is_test), stat(is_test)
-        flag = " ★" if n1 >= 100 and n2 >= 50 and t1 >= 1.64 and r2 > 0 else ""
+        big = n1 >= 100 and n2 >= 50
+        flag = " ★★" if big and t1 >= 2 and t2 >= 1 else " ★" if big and t1 >= 1.64 and r2 > 0 else ""
         say(f"{name:<34}{n:>6}{r*100:>+7.1f}%{t:>+6.2f} ｜{n1:>8}{r1*100:>+7.1f}%{t1:>+6.2f} ｜{n2:>7}{r2*100:>+7.1f}%{t2:>+6.2f}{flag}")
         rows.append({"market": title, "signal": name, "n": n, "roi": r, "t": t, "n_train": n1, "roi_train": r1, "t_train": t1,
-                     "n_test": n2, "roi_test": r2, "t_test": t2, "star": bool(flag)})
+                     "n_test": n2, "roi_test": r2, "t_test": t2, "star": flag.strip()})
     return rows
 
 
@@ -181,7 +186,9 @@ def football() -> list[dict]:
 # ============================================================ NBA
 def nba() -> list[dict]:
     df = data_nba.load_history()
-    df = df[~df["playoffs"]].dropna(subset=["c_spread_home", "c_spread_home_odds", "c_spread_away_odds", "home_score"]).reset_index(drop=True)
+    df = df[~df["playoffs"]].dropna(subset=["c_spread_home", "home_score"]).reset_index(drop=True)
+    for c in ("c_spread_home_odds", "c_spread_away_odds", "c_over_odds", "c_under_odds"):
+        df[c] = df[c].fillna(1.91)                   # 舊季別沒存賠率 → 用標準 -110
     df["gid"] = df.index
     df["date"] = pd.to_datetime(df["game_date"])
     df["margin"] = df["home_score"] - df["away_score"]
@@ -189,7 +196,7 @@ def nba() -> list[dict]:
     df["pnl_h"] = [settle_handicap(m, l, o) for m, l, o in zip(df["margin"], df["c_spread_home"], df["c_spread_home_odds"])]
     df["pnl_a"] = [settle_handicap(-m, -l, o) for m, l, o in zip(df["margin"], df["c_spread_home"], df["c_spread_away_odds"])]
     df["cover_h"] = np.sign(df["pnl_h"])
-    has_t = df["c_total"].notna() & df["c_over_odds"].notna() & df["c_under_odds"].notna()
+    has_t = df["c_total"].notna()
     df["over"] = np.where(has_t, (df["pts"] > df["c_total"]).astype(float), np.nan)
     df["pnl_o"] = [settle_total(p, l, "over", o) if k else np.nan for p, l, o, k in zip(df["pts"], df["c_total"], df["c_over_odds"], has_t)]
     df["pnl_u"] = [settle_total(p, l, "under", o) if k else np.nan for p, l, o, k in zip(df["pts"], df["c_total"], df["c_under_odds"], has_t)]
@@ -259,9 +266,12 @@ if __name__ == "__main__":
     rows = football() + nba()
     pd.DataFrame(rows).to_csv(OUT / "situational.csv", index=False, encoding="utf-8-sig")
     stars = [r for r in rows if r["star"]]
-    say(f"\n# 總結：共測 {len(rows)} 個因子，train t≥1.64 且 test ROI>0 的有 {len(stars)} 個（★）")
-    say(f"純靠運氣，{len(rows)} 個裡預期也會有約 {len(rows) * 0.05 * 0.5:.1f} 個同時通過這兩關。")
-    for r in stars:
-        say(f"★ {r['market']}｜{r['signal']}：train {r['roi_train']*100:+.1f}%（t={r['t_train']:+.2f}, n={r['n_train']}）"
+    say()
+    say(f"# 總結：共測 {len(rows)} 個方向。★★ = train t≥2 且 test t≥1（純運氣預期約 {len(rows) * 0.023 * 0.03:.1f} 個）；"
+        f"★ = train t≥1.64 且 test ROI>0（純運氣預期約 {len(rows) * 0.05 * 0.15:.1f} 個）")
+    for r in sorted(stars, key=lambda r: -len(r["star"])):
+        say(f"{r['star']} {r['market']}｜{r['signal']}：train {r['roi_train']*100:+.1f}%（t={r['t_train']:+.2f}, n={r['n_train']}）"
             f"｜test {r['roi_test']*100:+.1f}%（t={r['t_test']:+.2f}, n={r['n_test']}）")
+    if not stars:
+        say("沒有任何因子通過。")
     (OUT / "situational.md").write_text("\n".join(LINES), encoding="utf-8")

@@ -18,6 +18,7 @@ import json
 import math
 import time
 
+import config
 import numpy as np
 
 from core import db, kv_get, kv_set, log
@@ -141,7 +142,7 @@ def _fit_nba_form(nba) -> dict:
 def nba_form_adjust(p: float | None, kind: str, d_star_out: float | None = None,
                     d_star_load: float | None = None) -> float | None:
     """把球員狀態加到校準後的 NBA 機率上。kind = 'spread' / 'ml'。特徵算不出來（季初）就不調整。"""
-    if p is None or d_star_load is None:
+    if p is None or d_star_load is None or not config.NBA_FORM_ADJUST:
         return p
     c = coefs()
     w = c.get(f"nba_form_{kind}")
